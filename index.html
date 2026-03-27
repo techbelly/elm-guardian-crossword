@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crossword</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="loader">
+      <form id="crossword-form">
+        <label for="crossword-path">Guardian crossword path (e.g. <code>cryptic/29963</code>):</label>
+        <input type="text" id="crossword-path" placeholder="cryptic/29963" />
+        <button type="submit">Load</button>
+      </form>
+    </div>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "crossword",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "elm-review": "^2.13.5",
+    "vite": "^8.0.2",
+    "vite-plugin-elm": "^3.0.1"
+  }
+}
