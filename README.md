@@ -2,6 +2,8 @@
 
 Simple locally-runnable webapp that provides a better interface - less noisy, less buggy and crash-free - for the Guardian crosswords. Written in Elm.
 
+![Screenshot](screenshot.png)
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/)
