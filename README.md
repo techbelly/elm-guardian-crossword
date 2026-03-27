@@ -2,6 +2,8 @@
 
 Simple locally-runnable webapp that provides a better interface - less noisy, less buggy and crash-free - for the Guardian crosswords. Written in Elm.
 
+More info [on my blog](https://whitebeard.blog/posts/building-a-better-crossword-page/).
+
 ![Screenshot](screenshot.png)
 
 ## Prerequisites
