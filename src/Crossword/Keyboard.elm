@@ -94,14 +94,15 @@ handleKey strategy key shiftKey model =
 
 shouldPreventDefault : String -> Bool
 shouldPreventDefault key =
-    List.member key
-        [ "Tab"
-        , "ArrowLeft"
-        , "ArrowRight"
-        , "ArrowUp"
-        , "ArrowDown"
-        , "Backspace"
-        ]
+    case categorizeKey key False of
+        Unhandled ->
+            False
+
+        Letter _ ->
+            False
+
+        _ ->
+            True
 
 
 categorizeKey : String -> Bool -> KeyAction
@@ -147,11 +148,4 @@ categorizeKey key shiftKey =
 
 isValidChar : Char -> Bool
 isValidChar ch =
-    let
-        code =
-            Char.toCode ch
-    in
-    (code >= 0x41 && code <= 0x5A)
-        || (code >= 0x61 && code <= 0x7A)
-        || (code >= 0x30 && code <= 0x39)
-        || (code >= 0xC0 && code <= 0xFF)
+    Char.isAlphaNum ch || (Char.toCode ch >= 0xC0 && Char.toCode ch <= 0xFF)

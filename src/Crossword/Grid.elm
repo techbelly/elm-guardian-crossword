@@ -59,12 +59,4 @@ cellIndexFromPosition ( c, r ) clue =
 isClueAnswered : Clue -> Grid -> Bool
 isClueAnswered clue grid =
     List.range 0 (clue.length - 1)
-        |> List.all
-            (\idx ->
-                case get (positionFromCellIndex idx clue) grid of
-                    Filled _ ->
-                        True
-
-                    Empty ->
-                        False
-            )
+        |> List.all (\idx -> get (positionFromCellIndex idx clue) grid /= Empty)

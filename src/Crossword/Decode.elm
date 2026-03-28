@@ -14,30 +14,21 @@ import Crossword.Types as Types
         , ClueSeparator(..)
         , SeparatorKind(..)
         )
+import Crossword.Grid as Grid
 import Dict exposing (Dict)
 import Json.Decode as Decode exposing (Decoder)
 
 
 decodePuzzle : Decoder Puzzle
 decodePuzzle =
-    Decode.field "entries" (Decode.list decodeClue)
-        |> Decode.andThen
-            (\entries ->
-                Decode.map5
-                    (\id number name setter dims ->
-                        buildPuzzle id number name setter dims entries
-                    )
-                    (Decode.field "id" Decode.string)
-                    (Decode.field "number" Decode.int)
-                    (Decode.field "name" Decode.string)
-                    (Decode.maybe (Decode.at [ "creator", "name" ] Decode.string))
-                    (Decode.field "dimensions" decodeDimensions)
-                    |> Decode.andThen
-                        (\buildFn ->
-                            Decode.map buildFn
-                                (Decode.field "crosswordType" Decode.string)
-                        )
-            )
+    Decode.map7 buildPuzzle
+        (Decode.field "id" Decode.string)
+        (Decode.field "number" Decode.int)
+        (Decode.field "name" Decode.string)
+        (Decode.maybe (Decode.at [ "creator", "name" ] Decode.string))
+        (Decode.field "dimensions" decodeDimensions)
+        (Decode.field "entries" (Decode.list decodeClue))
+        (Decode.field "crosswordType" Decode.string)
 
 
 decodeDimensions : Decoder { cols : Int, rows : Int }
@@ -113,23 +104,23 @@ decodeClue =
 
 
 buildPuzzle : String -> Int -> String -> Maybe String -> { cols : Int, rows : Int } -> List Clue -> String -> Puzzle
-buildPuzzle id number name setter dims entries crosswordType =
+buildPuzzle id number name setter dims clues crosswordType =
     let
-        acrossEntries =
-            entries
+        acrossClues =
+            clues
                 |> List.filter (\e -> e.id.direction == Across)
                 |> List.sortBy (\e -> e.id.number)
 
-        downEntries =
-            entries
+        downClues =
+            clues
                 |> List.filter (\e -> e.id.direction == Down)
                 |> List.sortBy (\e -> e.id.number)
 
-        sortedEntries =
-            acrossEntries ++ downEntries
+        sortedClues =
+            acrossClues ++ downClues
 
         cellInfos =
-            buildCellInfos entries
+            buildCellInfos clues
     in
     { id = id
     , puzzleNumber = number
@@ -137,7 +128,7 @@ buildPuzzle id number name setter dims entries crosswordType =
     , setter = setter
     , dimensions = dims
     , crosswordType = crosswordType
-    , clues = sortedEntries
+    , clues = sortedClues
     , cellInfos = cellInfos
     }
 
@@ -147,18 +138,15 @@ buildPuzzle id number name setter dims entries crosswordType =
 
 
 buildCellInfos : List Clue -> Dict ( Int, Int ) CellInfo
-buildCellInfos entries =
-    List.foldl addClueToCellInfos Dict.empty entries
+buildCellInfos clues =
+    List.foldl addClueToCellInfos Dict.empty clues
 
 
 addClueToCellInfos : Clue -> Dict ( Int, Int ) CellInfo -> Dict ( Int, Int ) CellInfo
-addClueToCellInfos entry cellInfos =
+addClueToCellInfos clue cellInfos =
     let
-        ( startCol, startRow ) =
-            entry.position
-
         separatorPositions =
-            entry.separators
+            clue.separators
                 |> List.map
                     (\sep ->
                         case sep of
@@ -169,28 +157,12 @@ addClueToCellInfos entry cellInfos =
                                 ( n, Dash )
                     )
     in
-    List.range 0 (entry.length - 1)
+    List.range 0 (clue.length - 1)
         |> List.foldl
             (\idx acc ->
                 let
-                    cellCol =
-                        case entry.id.direction of
-                            Across ->
-                                startCol + idx
-
-                            Down ->
-                                startCol
-
-                    cellRow =
-                        case entry.id.direction of
-                            Across ->
-                                startRow
-
-                            Down ->
-                                startRow + idx
-
                     key =
-                        ( cellCol, cellRow )
+                        Grid.positionFromCellIndex idx clue
 
                     isStart =
                         idx == 0
@@ -200,7 +172,7 @@ addClueToCellInfos entry cellInfos =
                             |> List.filterMap
                                 (\( sepPos, sepKind ) ->
                                     if sepPos == idx then
-                                        Just { direction = entry.id.direction, kind = sepKind }
+                                        Just { direction = clue.id.direction, kind = sepKind }
 
                                     else
                                         Nothing
@@ -210,20 +182,20 @@ addClueToCellInfos entry cellInfos =
                         case Dict.get key acc of
                             Nothing ->
                                 { clues =
-                                    case entry.id.direction of
+                                    case clue.id.direction of
                                         Across ->
-                                            AcrossOnly entry.id
+                                            AcrossOnly clue.id
 
                                         Down ->
-                                            DownOnly entry.id
+                                            DownOnly clue.id
                                 , start =
                                     if isStart then
-                                        case entry.id.direction of
+                                        case clue.id.direction of
                                             Across ->
-                                                StartsAcross entry.id.number
+                                                StartsAcross clue.id.number
 
                                             Down ->
-                                                StartsDown entry.id.number
+                                                StartsDown clue.id.number
 
                                     else
                                         NotStart
@@ -232,29 +204,29 @@ addClueToCellInfos entry cellInfos =
 
                             Just existing ->
                                 { clues =
-                                    case ( entry.id.direction, existing.clues ) of
+                                    case ( clue.id.direction, existing.clues ) of
                                         ( Across, DownOnly d ) ->
-                                            AcrossAndDown { across = entry.id, down = d }
+                                            AcrossAndDown { across = clue.id, down = d }
 
                                         ( Down, AcrossOnly a ) ->
-                                            AcrossAndDown { across = a, down = entry.id }
+                                            AcrossAndDown { across = a, down = clue.id }
 
                                         _ ->
                                             existing.clues
                                 , start =
                                     if isStart then
-                                        case ( entry.id.direction, existing.start ) of
+                                        case ( clue.id.direction, existing.start ) of
                                             ( Across, StartsDown _ ) ->
-                                                StartsBoth entry.id.number
+                                                StartsBoth clue.id.number
 
                                             ( Down, StartsAcross _ ) ->
-                                                StartsBoth entry.id.number
+                                                StartsBoth clue.id.number
 
                                             ( Across, _ ) ->
-                                                StartsAcross entry.id.number
+                                                StartsAcross clue.id.number
 
                                             ( Down, _ ) ->
-                                                StartsDown entry.id.number
+                                                StartsDown clue.id.number
 
                                     else
                                         existing.start

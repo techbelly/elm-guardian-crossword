@@ -4,6 +4,7 @@ import Crossword.Grid as Grid
 import Crossword.Types exposing (NavigationStrategy)
 import Crossword.Selection as Selection
 import Crossword.Types as Types exposing (CellValue(..), Grid, Puzzle, Selection)
+import ListExtra
 
 
 strategy : NavigationStrategy
@@ -34,11 +35,7 @@ nextBlankInGroup grid puzzle sel =
             Selection.groupSelections sel.clueId puzzle
 
         selIdx =
-            allGroupCells
-                |> List.indexedMap Tuple.pair
-                |> List.filter (\( _, s ) -> s == sel)
-                |> List.head
-                |> Maybe.map Tuple.first
+            ListExtra.findIndex sel allGroupCells
                 |> Maybe.withDefault -1
 
         blanksAfterCurrent =
@@ -87,11 +84,7 @@ unfilledClueFrom grid puzzle sel clueIds =
                 |> List.any (isBlank grid puzzle)
 
         currentIdx =
-            clueIds
-                |> List.indexedMap Tuple.pair
-                |> List.filter (\( _, cid ) -> cid == sel.clueId)
-                |> List.head
-                |> Maybe.map Tuple.first
+            ListExtra.findIndex sel.clueId clueIds
                 |> Maybe.withDefault 0
 
         cycled =
