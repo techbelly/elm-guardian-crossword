@@ -1,4 +1,4 @@
-module Crossword.Decode exposing (decodePuzzle, decodeGrid)
+module Crossword.Decode exposing (buildCellInfos, decodePuzzle, decodeGrid)
 
 import Crossword.Types as Types
     exposing

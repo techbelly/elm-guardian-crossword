@@ -1,6 +1,6 @@
 # Guardian Crossword
 
-Simple locally-runnable webapp that provides a better interface - less noisy, less buggy and crash-free - for the Guardian crosswords. Written in Elm.
+Simple locally-runnable webapp that provides a better interface - less noisy, less buggy and crash-free - for the Guardian crosswords. Also allows switching between NYT and Guardian navigation styles. Written in Elm.
 
 More info [on my blog](https://whitebeard.blog/posts/building-a-better-crossword-page/).
 

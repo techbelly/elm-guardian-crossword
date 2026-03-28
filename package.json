@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "elm-coverage": "^0.4.1",
     "elm-review": "^2.13.5",
     "vite": "^8.0.2",
     "vite-plugin-elm": "^3.0.1"
