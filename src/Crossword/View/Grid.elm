@@ -123,14 +123,11 @@ viewCell c r cellInfo grid focusedPos highlighted =
         isFocused =
             focusedPos == Just ( c, r )
 
-        isHighlighted =
-            Set.member ( c, r ) highlighted
-
         fillColor =
             if isFocused then
                 focusedColor
 
-            else if isHighlighted then
+            else if Set.member ( c, r ) highlighted then
                 highlightedColor
 
             else

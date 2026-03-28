@@ -254,19 +254,13 @@ selectionForPosition pos preferredDir puzzle =
 
 selectionFromCellInfo : Types.Position -> Direction -> Puzzle -> Types.CellInfo -> Maybe Selection
 selectionFromCellInfo pos preferredDir puzzle cellInfo =
-    let
-        first =
-            Types.clueIdForDirection preferredDir cellInfo
-
-        second =
-            Types.clueIdForDirection (Types.flipDirection preferredDir) cellInfo
-    in
-    case first of
+    case Types.clueIdForDirection preferredDir cellInfo of
         Just cid ->
             selectionForClueId pos cid puzzle
 
         Nothing ->
-            Maybe.andThen (\cid -> selectionForClueId pos cid puzzle) second
+            Types.clueIdForDirection (Types.flipDirection preferredDir) cellInfo
+                |> Maybe.andThen (\cid -> selectionForClueId pos cid puzzle)
 
 
 selectionForClueId : Types.Position -> ClueId -> Puzzle -> Maybe Selection

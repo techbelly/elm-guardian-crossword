@@ -273,7 +273,7 @@ addClueToCellInfos entry cellInfos =
 decodeGrid : Decoder Grid
 decodeGrid =
     Decode.keyValuePairs decodeCellValue
-        |> Decode.andThen
+        |> Decode.map
             (\pairs ->
                 pairs
                     |> List.filterMap
@@ -291,19 +291,18 @@ decodeGrid =
                                     Nothing
                         )
                     |> Dict.fromList
-                    |> Decode.succeed
             )
 
 
 decodeCellValue : Decoder CellValue
 decodeCellValue =
     Decode.string
-        |> Decode.andThen
+        |> Decode.map
             (\s ->
                 case String.uncons s of
                     Just ( ch, "" ) ->
-                        Decode.succeed (Filled ch)
+                        Filled ch
 
                     _ ->
-                        Decode.succeed Empty
+                        Empty
             )

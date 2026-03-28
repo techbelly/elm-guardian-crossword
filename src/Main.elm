@@ -1,4 +1,4 @@
-port module Main exposing (main)
+port module Main exposing (Flags, main)
 
 import Browser
 import Crossword.Decode as Decode

@@ -84,7 +84,7 @@ viewClueItem : Clue -> Grid -> List ClueId -> Html Msg
 viewClueItem clue grid activeGroup =
     let
         isSelected =
-            List.any (\cid -> cid == clue.id) activeGroup
+            List.member clue.id activeGroup
 
         isAnswered =
             Grid.isClueAnswered clue grid
