@@ -12,6 +12,8 @@ module Crossword.Types exposing
     , Arrow(..)
     , Model(..)
     , Msg(..)
+    , NavigationStrategy
+    , NavigationStyle(..)
     , Position
     , Puzzle
     , Selection
@@ -23,6 +25,19 @@ module Crossword.Types exposing
     )
 
 import Dict exposing (Dict)
+
+
+type NavigationStyle
+    = Guardian
+    | NYT
+
+
+type alias NavigationStrategy =
+    { afterLetter : Bool -> Grid -> Puzzle -> Selection -> Selection
+    , nextClue : Grid -> Puzzle -> Selection -> Selection
+    , prevClue : Grid -> Puzzle -> Selection -> Selection
+    , selectClue : Grid -> Puzzle -> ClueId -> Selection
+    }
 
 
 type Arrow
@@ -220,6 +235,7 @@ type alias ActiveModel =
     { puzzle : Puzzle
     , grid : Grid
     , selection : Maybe Selection
+    , navigationStyle : NavigationStyle
     }
 
 
@@ -231,3 +247,4 @@ type Msg
     = CellClicked Position
     | KeyPressed String Bool
     | ClueClicked ClueId
+    | SetNavigation NavigationStyle

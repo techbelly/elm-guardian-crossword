@@ -4,20 +4,20 @@ import Browser
 import Crossword.Decode as Decode
 import Crossword.Encode as Encode
 import Crossword.Keyboard as Keyboard
+import Crossword.Navigation.Guardian as Guardian
+import Crossword.Navigation.NYT as NYT
 import Crossword.Selection as Selection
 import Crossword.Types as Types
     exposing
         ( ActiveModel
         , Model(..)
         , Msg(..)
+        , NavigationStrategy
+        , NavigationStyle(..)
         )
-import Crossword.View.Title as ViewTitle
+import Crossword.View.App as ViewApp
 import Crossword.View.Clues as ViewClues
-import Crossword.View.Grid as ViewGrid
 import Dict
-import Html exposing (Html, div, h1, text)
-import Html.Attributes as Attr
-import Html.Events
 import Json.Decode
 import Json.Encode
 
@@ -39,7 +39,7 @@ main =
     Browser.element
         { init = init
         , update = update
-        , view = view
+        , view = ViewApp.view
         , subscriptions = subscriptions
         }
 
@@ -56,7 +56,12 @@ init flags =
                     Json.Decode.decodeValue Decode.decodeGrid flags.savedGrid
                         |> Result.withDefault Dict.empty
             in
-            ( Active { puzzle = puzzle, grid = grid, selection = Nothing }
+            ( Active
+                { puzzle = puzzle
+                , grid = grid
+                , selection = Nothing
+                , navigationStyle = NYT
+                }
             , Cmd.none
             )
 
@@ -101,7 +106,7 @@ updateActive msg model =
         KeyPressed key shiftKey ->
             let
                 ( newModel, needsSave ) =
-                    Keyboard.handleKey key shiftKey model
+                    Keyboard.handleKey (strategyFor model.navigationStyle) key shiftKey model
             in
             ( newModel
             , if needsSave then
@@ -112,47 +117,29 @@ updateActive msg model =
             )
 
         ClueClicked cid ->
-            ( { model | selection = Just (Selection.selectClue cid) }
+            ( { model | selection = Just ((strategyFor model.navigationStyle).selectClue model.grid model.puzzle cid) }
             , Cmd.none
             )
+
+        SetNavigation style ->
+            ( { model | navigationStyle = style }
+            , Cmd.none
+            )
+
+
+strategyFor : NavigationStyle -> NavigationStrategy
+strategyFor style =
+    case style of
+        Guardian ->
+            Guardian.strategy
+
+        NYT ->
+            NYT.strategy
 
 
 scrollToClueElement : Types.ClueId -> Cmd Msg
 scrollToClueElement cid =
     scrollIntoView (ViewClues.clueElementId cid)
-
-
-view : Model -> Html Msg
-view outerModel =
-    case outerModel of
-        Failed err ->
-            div []
-                [ h1 [] [ text "Error loading crossword" ]
-                , Html.pre [] [ text err ]
-                ]
-
-        Active model ->
-            div
-                [ Attr.class "crossword"
-                , Attr.tabindex 0
-                , Html.Events.preventDefaultOn "keydown"
-                    (Json.Decode.map2
-                        (\key shift ->
-                            ( KeyPressed key shift
-                            , Keyboard.shouldPreventDefault key
-                            )
-                        )
-                        (Json.Decode.field "key" Json.Decode.string)
-                        (Json.Decode.field "shiftKey" Json.Decode.bool)
-                    )
-                ]
-                [ ViewTitle.viewTitle model.puzzle
-                , ViewClues.viewStickyBar model.puzzle model.selection
-                , div [ Attr.class "crossword__content" ]
-                    [ ViewGrid.viewGrid model.puzzle model.grid model.selection
-                    , ViewClues.viewCluePanel model.puzzle model.grid model.selection
-                    ]
-                ]
 
 
 subscriptions : Model -> Sub Msg

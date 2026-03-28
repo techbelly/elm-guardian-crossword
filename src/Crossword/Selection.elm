@@ -1,9 +1,9 @@
 module Crossword.Selection exposing
     ( arrowMove
+    , clueSelections
+    , groupSelections
     , nextCell
-    , nextClue
     , prevCell
-    , prevClue
     , selectCell
     , selectClue
     , selectionPosition
@@ -114,15 +114,26 @@ findInGroup cellPos sel puzzle =
 
 
 selectionIfInClue : Types.Position -> ClueId -> Puzzle -> Maybe Selection
-selectionIfInClue pos clueId puzzle =
+selectionIfInClue (( c, r ) as pos) clueId puzzle =
     Types.lookupClue clueId puzzle
         |> Maybe.andThen
             (\clue ->
                 let
+                    ( clueCol, clueRow ) =
+                        clue.position
+
                     idx =
                         Grid.cellIndexFromPosition pos clue
+
+                    onLine =
+                        case clue.id.direction of
+                            Types.Across ->
+                                r == clueRow
+
+                            Types.Down ->
+                                c == clueCol
                 in
-                if idx >= 0 && idx < clue.length then
+                if onLine && idx >= 0 && idx < clue.length then
                     Just { clueId = clueId, cellIndex = idx }
 
                 else
@@ -180,23 +191,6 @@ arrowMove arrow puzzle sel =
                 Nothing ->
                     sel
 
-
-nextClue : Puzzle -> Selection -> Selection
-nextClue puzzle sel =
-    puzzle.clues
-        |> List.map .id
-        |> ListExtra.nextInList sel.clueId
-        |> Maybe.map selectClue
-        |> Maybe.withDefault sel
-
-
-prevClue : Puzzle -> Selection -> Selection
-prevClue puzzle sel =
-    puzzle.clues
-        |> List.map .id
-        |> ListExtra.prevInList sel.clueId
-        |> Maybe.map selectClue
-        |> Maybe.withDefault sel
 
 
 groupSelections : ClueId -> Puzzle -> List Selection

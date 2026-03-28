@@ -7,6 +7,7 @@ import Crossword.Types
         ( ActiveModel
         , Arrow(..)
         , CellValue(..)
+        , NavigationStrategy
         )
 
 
@@ -19,8 +20,8 @@ type KeyAction
     | Unhandled
 
 
-handleKey : String -> Bool -> ActiveModel -> ( ActiveModel, Bool )
-handleKey key shiftKey model =
+handleKey : NavigationStrategy -> String -> Bool -> ActiveModel -> ( ActiveModel, Bool )
+handleKey strategy key shiftKey model =
     case model.selection of
         Nothing ->
             ( model, False )
@@ -38,10 +39,16 @@ handleKey key shiftKey model =
 
                         Just pos ->
                             let
+                                wasBlank =
+                                    Grid.get pos model.grid == Empty
+
                                 newGrid =
                                     Grid.set pos (Filled ch) model.grid
+
+                                newSel =
+                                    strategy.afterLetter wasBlank newGrid puzzle sel
                             in
-                            ( { model | grid = newGrid, selection = Just (Selection.nextCell puzzle sel) }
+                            ( { model | grid = newGrid, selection = Just newSel }
                             , True
                             )
 
@@ -72,12 +79,12 @@ handleKey key shiftKey model =
                     )
 
                 Tab ->
-                    ( { model | selection = Just (Selection.nextClue puzzle sel) }
+                    ( { model | selection = Just (strategy.nextClue model.grid puzzle sel) }
                     , False
                     )
 
                 ShiftTab ->
-                    ( { model | selection = Just (Selection.prevClue puzzle sel) }
+                    ( { model | selection = Just (strategy.prevClue model.grid puzzle sel) }
                     , False
                     )
 
