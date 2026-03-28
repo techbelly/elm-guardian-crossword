@@ -5,6 +5,8 @@ module Crossword.Selection exposing
     , prevCell
     , prevClue
     , selectCell
+    , selectClue
+    , selectionPosition
     )
 
 import Crossword.Grid as Grid
@@ -20,6 +22,11 @@ import Crossword.Types as Types
         )
 import Dict
 import ListExtra
+
+
+selectClue : ClueId -> Selection
+selectClue cid =
+    { clueId = cid, cellIndex = 0 }
 
 
 -- Click handling

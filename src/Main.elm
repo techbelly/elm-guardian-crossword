@@ -3,22 +3,19 @@ port module Main exposing (main)
 import Browser
 import Crossword.Decode as Decode
 import Crossword.Encode as Encode
-import Crossword.Grid as Grid
+import Crossword.Keyboard as Keyboard
 import Crossword.Selection as Selection
 import Crossword.Types as Types
     exposing
         ( ActiveModel
-        , Arrow(..)
-        , CellValue(..)
         , Model(..)
         , Msg(..)
-        , Puzzle
-        , Selection
         )
+import Crossword.View.Title as ViewTitle
 import Crossword.View.Clues as ViewClues
 import Crossword.View.Grid as ViewGrid
 import Dict
-import Html exposing (Html, div, h1, span, text)
+import Html exposing (Html, div, h1, text)
 import Html.Attributes as Attr
 import Html.Events
 import Json.Decode
@@ -102,167 +99,27 @@ updateActive msg model =
             )
 
         KeyPressed key shiftKey ->
-            handleKey key shiftKey model
+            let
+                ( newModel, needsSave ) =
+                    Keyboard.handleKey key shiftKey model
+            in
+            ( newModel
+            , if needsSave then
+                saveGrid (Encode.encodeGrid newModel.grid)
 
-        ClueClicked cid ->
-            ( { model | selection = Just { clueId = cid, cellIndex = 0 } }
-            , Cmd.none
+              else
+                Cmd.none
             )
 
-
-
--- Key categorization
-
-
-type KeyAction
-    = Letter Char
-    | Backspace
-    | Arrow Arrow
-    | Tab
-    | ShiftTab
-    | Unhandled
-
-
-categorizeKey : String -> Bool -> KeyAction
-categorizeKey key shiftKey =
-    case key of
-        "Backspace" ->
-            Backspace
-
-        "Delete" ->
-            Backspace
-
-        "ArrowLeft" ->
-            Arrow ArrowLeft
-
-        "ArrowRight" ->
-            Arrow ArrowRight
-
-        "ArrowUp" ->
-            Arrow ArrowUp
-
-        "ArrowDown" ->
-            Arrow ArrowDown
-
-        "Tab" ->
-            if shiftKey then
-                ShiftTab
-
-            else
-                Tab
-
-        _ ->
-            case String.uncons key of
-                Just ( ch, "" ) ->
-                    if isValidChar ch then
-                        Letter (Char.toUpper ch)
-
-                    else
-                        Unhandled
-
-                _ ->
-                    Unhandled
-
-
-isValidChar : Char -> Bool
-isValidChar ch =
-    let
-        code =
-            Char.toCode ch
-    in
-    (code >= 0x41 && code <= 0x5A)
-        || (code >= 0x61 && code <= 0x7A)
-        || (code >= 0x30 && code <= 0x39)
-        || (code >= 0xC0 && code <= 0xFF)
-
-
-handleKey : String -> Bool -> ActiveModel -> ( ActiveModel, Cmd Msg )
-handleKey key shiftKey model =
-    case model.selection of
-        Nothing ->
-            ( model, Cmd.none )
-
-        Just sel ->
-            let
-                puzzle =
-                    model.puzzle
-            in
-            case categorizeKey key shiftKey of
-                Letter ch ->
-                    case selectionPosition sel puzzle of
-                        Nothing ->
-                            ( model, Cmd.none )
-
-                        Just pos ->
-                            let
-                                newGrid =
-                                    Grid.set pos (Filled ch) model.grid
-                            in
-                            ( { model | grid = newGrid, selection = Just (Selection.nextCell puzzle sel) }
-                            , saveGrid (Encode.encodeGrid newGrid)
-                            )
-
-                Backspace ->
-                    case selectionPosition sel puzzle of
-                        Nothing ->
-                            ( model, Cmd.none )
-
-                        Just pos ->
-                            case Grid.get pos model.grid of
-                                Filled _ ->
-                                    let
-                                        newGrid =
-                                            Grid.set pos Empty model.grid
-                                    in
-                                    ( { model | grid = newGrid }
-                                    , saveGrid (Encode.encodeGrid newGrid)
-                                    )
-
-                                Empty ->
-                                    ( { model | selection = Just (Selection.prevCell puzzle sel) }
-                                    , Cmd.none
-                                    )
-
-                Arrow dir ->
-                    ( { model | selection = Just (Selection.arrowMove dir puzzle sel) }
-                    , Cmd.none
-                    )
-
-                Tab ->
-                    ( { model | selection = Just (Selection.nextClue puzzle sel) }
-                    , Cmd.none
-                    )
-
-                ShiftTab ->
-                    ( { model | selection = Just (Selection.prevClue puzzle sel) }
-                    , Cmd.none
-                    )
-
-                Unhandled ->
-                    ( model, Cmd.none )
-
-
-selectionPosition : Selection -> Puzzle -> Maybe Types.Position
-selectionPosition sel puzzle =
-    Types.lookupClue sel.clueId puzzle
-        |> Maybe.map (Grid.positionFromCellIndex sel.cellIndex)
+        ClueClicked cid ->
+            ( { model | selection = Just (Selection.selectClue cid) }
+            , Cmd.none
+            )
 
 
 scrollToClueElement : Types.ClueId -> Cmd Msg
 scrollToClueElement cid =
     scrollIntoView (ViewClues.clueElementId cid)
-
-
-shouldPreventDefault : String -> Bool
-shouldPreventDefault key =
-    List.member key
-        [ "Tab"
-        , "ArrowLeft"
-        , "ArrowRight"
-        , "ArrowUp"
-        , "ArrowDown"
-        , "Backspace"
-        ]
 
 
 view : Model -> Html Msg
@@ -282,28 +139,14 @@ view outerModel =
                     (Json.Decode.map2
                         (\key shift ->
                             ( KeyPressed key shift
-                            , shouldPreventDefault key
+                            , Keyboard.shouldPreventDefault key
                             )
                         )
                         (Json.Decode.field "key" Json.Decode.string)
                         (Json.Decode.field "shiftKey" Json.Decode.bool)
                     )
                 ]
-                [ h1 [ Attr.class "crossword__title" ]
-                    (text model.puzzle.name
-                        :: (case model.puzzle.setter of
-                                Just setter ->
-                                    [ span
-                                        [ Attr.style "font-weight" "normal"
-                                        , Attr.style "font-style" "italic"
-                                        ]
-                                        [ text (" by " ++ setter) ]
-                                    ]
-
-                                Nothing ->
-                                    []
-                           )
-                    )
+                [ ViewTitle.viewTitle model.puzzle
                 , ViewClues.viewStickyBar model.puzzle model.selection
                 , div [ Attr.class "crossword__content" ]
                     [ ViewGrid.viewGrid model.puzzle model.grid model.selection
