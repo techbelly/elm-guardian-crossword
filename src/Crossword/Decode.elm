@@ -23,18 +23,18 @@ decodePuzzle =
     Decode.field "entries" (Decode.list decodeClue)
         |> Decode.andThen
             (\entries ->
-                Decode.map4
-                    (\id number name dims ->
-                        buildPuzzle id number name dims entries
+                Decode.map5
+                    (\id number name setter dims ->
+                        buildPuzzle id number name setter dims entries
                     )
                     (Decode.field "id" Decode.string)
                     (Decode.field "number" Decode.int)
                     (Decode.field "name" Decode.string)
+                    (Decode.maybe (Decode.at [ "creator", "name" ] Decode.string))
                     (Decode.field "dimensions" decodeDimensions)
                     |> Decode.andThen
                         (\buildFn ->
-                            Decode.map
-                                (\crosswordType -> buildFn crosswordType)
+                            Decode.map buildFn
                                 (Decode.field "crosswordType" Decode.string)
                         )
             )
@@ -112,8 +112,8 @@ decodeClue =
 -- Build the full Puzzle from parsed entries, pre-computing all derived data.
 
 
-buildPuzzle : String -> Int -> String -> { cols : Int, rows : Int } -> List Clue -> String -> Puzzle
-buildPuzzle id number name dims entries crosswordType =
+buildPuzzle : String -> Int -> String -> Maybe String -> { cols : Int, rows : Int } -> List Clue -> String -> Puzzle
+buildPuzzle id number name setter dims entries crosswordType =
     let
         acrossEntries =
             entries
@@ -134,6 +134,7 @@ buildPuzzle id number name dims entries crosswordType =
     { id = id
     , puzzleNumber = number
     , name = name
+    , setter = setter
     , dimensions = dims
     , crosswordType = crosswordType
     , clues = sortedEntries

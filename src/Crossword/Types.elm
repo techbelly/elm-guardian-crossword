@@ -181,6 +181,7 @@ type alias Puzzle =
     { id : String
     , puzzleNumber : Int
     , name : String
+    , setter : Maybe String
     , dimensions : { cols : Int, rows : Int }
     , crosswordType : String
     , clues : List Clue

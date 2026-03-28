@@ -19,7 +19,7 @@ import Crossword.Types as Types
 import Crossword.View.Clues as ViewClues
 import Crossword.View.Grid as ViewGrid
 import Dict
-import Html exposing (Html, div, h1, text)
+import Html exposing (Html, div, h1, span, text)
 import Html.Attributes as Attr
 import Html.Events
 import Json.Decode
@@ -317,7 +317,21 @@ view outerModel =
                         (Json.Decode.field "shiftKey" Json.Decode.bool)
                     )
                 ]
-                [ h1 [ Attr.class "crossword__title" ] [ text model.puzzle.name ]
+                [ h1 [ Attr.class "crossword__title" ]
+                    (text model.puzzle.name
+                        :: (case model.puzzle.setter of
+                                Just setter ->
+                                    [ span
+                                        [ Attr.style "font-weight" "normal"
+                                        , Attr.style "font-style" "italic"
+                                        ]
+                                        [ text (" by " ++ setter) ]
+                                    ]
+
+                                Nothing ->
+                                    []
+                           )
+                    )
                 , ViewClues.viewStickyBar model.puzzle model.selection
                 , div [ Attr.class "crossword__content" ]
                     [ ViewGrid.viewGrid model.puzzle model.grid model.selection
