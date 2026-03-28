@@ -4,7 +4,6 @@ import Browser
 import Crossword.Decode as Decode
 import Crossword.Encode as Encode
 import Crossword.Grid as Grid
-import Crossword.Navigation as Navigation
 import Crossword.Selection as Selection
 import Crossword.Types as Types
     exposing
@@ -199,7 +198,7 @@ handleKey key shiftKey model =
                                 newGrid =
                                     Grid.set pos (Filled ch) model.grid
                             in
-                            ( { model | grid = newGrid, selection = Just (Navigation.nextCell puzzle sel) }
+                            ( { model | grid = newGrid, selection = Just (Selection.nextCell puzzle sel) }
                             , saveGrid (Encode.encodeGrid newGrid)
                             )
 
@@ -220,22 +219,22 @@ handleKey key shiftKey model =
                                     )
 
                                 Empty ->
-                                    ( { model | selection = Just (Navigation.prevCell puzzle sel) }
+                                    ( { model | selection = Just (Selection.prevCell puzzle sel) }
                                     , Cmd.none
                                     )
 
                 Arrow dir ->
-                    ( { model | selection = Just (Navigation.arrowMove dir puzzle sel) }
+                    ( { model | selection = Just (Selection.arrowMove dir puzzle sel) }
                     , Cmd.none
                     )
 
                 Tab ->
-                    ( { model | selection = Just (Navigation.nextClue puzzle sel) }
+                    ( { model | selection = Just (Selection.nextClue puzzle sel) }
                     , Cmd.none
                     )
 
                 ShiftTab ->
-                    ( { model | selection = Just (Navigation.prevClue puzzle sel) }
+                    ( { model | selection = Just (Selection.prevClue puzzle sel) }
                     , Cmd.none
                     )
 

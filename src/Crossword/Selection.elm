@@ -1,17 +1,28 @@
-module Crossword.Selection exposing (selectCell)
+module Crossword.Selection exposing
+    ( arrowMove
+    , nextCell
+    , nextClue
+    , prevCell
+    , prevClue
+    , selectCell
+    )
 
 import Crossword.Grid as Grid
 import Crossword.Types as Types
     exposing
-        ( CellInfo
+        ( Arrow(..)
+        , CellInfo
         , ClueStart(..)
         , Direction(..)
-        , Clue
         , ClueId
         , Puzzle
         , Selection
         )
 import Dict
+import ListExtra
+
+
+-- Click handling
 
 
 selectCell : Types.Position -> Maybe Selection -> Puzzle -> Maybe Selection
@@ -64,8 +75,7 @@ toggleDirection cellPos cellInfo sel puzzle =
             sel
 
         Just newClueId ->
-            withClue newClueId puzzle
-                (\clue -> Just { clueId = newClueId, cellIndex = Grid.cellIndexFromPosition cellPos clue })
+            selectionForClueId cellPos newClueId puzzle
                 |> Maybe.withDefault sel
 
 
@@ -73,12 +83,7 @@ pickClueAndIndex : Types.Position -> Direction -> CellInfo -> Puzzle -> Selectio
 pickClueAndIndex cellPos preferredDir cellInfo puzzle =
     let
         tryClue maybeClueId =
-            maybeClueId
-                |> Maybe.andThen
-                    (\cid ->
-                        withClue cid puzzle
-                            (\clue -> Just { clueId = cid, cellIndex = Grid.cellIndexFromPosition cellPos clue })
-                    )
+            maybeClueId |> Maybe.andThen (\cid -> selectionForClueId cellPos cid puzzle)
 
         fallback =
             { clueId = { number = 0, direction = Across }, cellIndex = 0 }
@@ -92,35 +97,172 @@ pickClueAndIndex cellPos preferredDir cellInfo puzzle =
 
 moveCursorWithinClue : Types.Position -> Selection -> Puzzle -> Maybe Selection
 moveCursorWithinClue cellPos sel puzzle =
-    withClue sel.clueId puzzle
-        (\clue ->
-            clue.group
-                |> List.filterMap (\cid -> selectionAtPosition cellPos cid puzzle)
-                |> List.head
-        )
+    Types.lookupClue sel.clueId puzzle
+        |> Maybe.andThen
+            (\clue ->
+                clue.group
+                    |> List.filterMap (\cid -> selectionAtPosition cellPos cid puzzle)
+                    |> List.head
+            )
 
 
-selectionAtPosition : Types.Position -> Types.ClueId -> Puzzle -> Maybe Selection
+selectionAtPosition : Types.Position -> ClueId -> Puzzle -> Maybe Selection
 selectionAtPosition pos clueId puzzle =
-    withClue clueId puzzle
-        (\clue ->
-            let
-                idx =
-                    Grid.cellIndexFromPosition pos clue
-            in
-            if idx >= 0 && idx < clue.length then
-                Just { clueId = clueId, cellIndex = idx }
+    Types.lookupClue clueId puzzle
+        |> Maybe.andThen
+            (\clue ->
+                let
+                    idx =
+                        Grid.cellIndexFromPosition pos clue
+                in
+                if idx >= 0 && idx < clue.length then
+                    Just { clueId = clueId, cellIndex = idx }
 
-            else
-                Nothing
-        )
+                else
+                    Nothing
+            )
+
+
+-- Keyboard handling
+
+
+nextCell : Puzzle -> Selection -> Selection
+nextCell puzzle sel =
+    groupSelections sel.clueId puzzle
+        |> ListExtra.nextInList sel
+        |> Maybe.withDefault sel
+
+
+prevCell : Puzzle -> Selection -> Selection
+prevCell puzzle sel =
+    groupSelections sel.clueId puzzle
+        |> ListExtra.prevInList sel
+        |> Maybe.withDefault sel
+
+
+arrowMove : Arrow -> Puzzle -> Selection -> Selection
+arrowMove arrow puzzle sel =
+    case selectionPosition sel puzzle of
+        Nothing ->
+            sel
+
+        Just currentPos ->
+            let
+                move positionsIn stepFn =
+                    stepFn currentPos (positionsIn currentPos puzzle)
+
+                ( target, preferredDir ) =
+                    case arrow of
+                        ArrowLeft ->
+                            ( move rowPositions ListExtra.prevInList, Across )
+
+                        ArrowRight ->
+                            ( move rowPositions ListExtra.nextInList, Across )
+
+                        ArrowUp ->
+                            ( move colPositions ListExtra.prevInList, Down )
+
+                        ArrowDown ->
+                            ( move colPositions ListExtra.nextInList, Down )
+            in
+            case target of
+                Just pos ->
+                    selectionForPosition pos preferredDir puzzle
+                        |> Maybe.withDefault sel
+
+                Nothing ->
+                    sel
+
+
+nextClue : Puzzle -> Selection -> Selection
+nextClue puzzle sel =
+    puzzle.clues
+        |> List.map .id
+        |> ListExtra.nextInList sel.clueId
+        |> Maybe.map (\cid -> { clueId = cid, cellIndex = 0 })
+        |> Maybe.withDefault sel
+
+
+prevClue : Puzzle -> Selection -> Selection
+prevClue puzzle sel =
+    puzzle.clues
+        |> List.map .id
+        |> ListExtra.prevInList sel.clueId
+        |> Maybe.map (\cid -> { clueId = cid, cellIndex = 0 })
+        |> Maybe.withDefault sel
+
+
+groupSelections : ClueId -> Puzzle -> List Selection
+groupSelections clueId puzzle =
+    case Types.lookupClue clueId puzzle of
+        Nothing ->
+            []
+
+        Just clue ->
+            clue.group
+                |> List.concatMap (\cid -> clueSelections cid puzzle)
+
+
+clueSelections : ClueId -> Puzzle -> List Selection
+clueSelections cid puzzle =
+    case Types.lookupClue cid puzzle of
+        Nothing ->
+            []
+
+        Just clue ->
+            List.range 0 (clue.length - 1)
+                |> List.map (\idx -> { clueId = cid, cellIndex = idx })
+
+
+rowPositions : Types.Position -> Puzzle -> List Types.Position
+rowPositions ( _, row ) puzzle =
+    puzzle.cellInfos
+        |> Dict.keys
+        |> List.filter (\( _, r ) -> r == row)
+        |> List.sortBy Tuple.first
+
+
+colPositions : Types.Position -> Puzzle -> List Types.Position
+colPositions ( col, _ ) puzzle =
+    puzzle.cellInfos
+        |> Dict.keys
+        |> List.filter (\( c, _ ) -> c == col)
+        |> List.sortBy Tuple.second
+
+
+-- Position and clue resolution
 
 
 selectionPosition : Selection -> Puzzle -> Maybe Types.Position
 selectionPosition sel puzzle =
-    withClue sel.clueId puzzle (Grid.positionFromCellIndex sel.cellIndex >> Just)
+    Types.lookupClue sel.clueId puzzle
+        |> Maybe.map (Grid.positionFromCellIndex sel.cellIndex)
 
 
-withClue : ClueId -> Puzzle -> (Clue -> Maybe a) -> Maybe a
-withClue cid puzzle f =
-    Types.lookupClue cid puzzle |> Maybe.andThen f
+selectionForPosition : Types.Position -> Direction -> Puzzle -> Maybe Selection
+selectionForPosition pos preferredDir puzzle =
+    Dict.get pos puzzle.cellInfos
+        |> Maybe.andThen (selectionFromCellInfo pos preferredDir puzzle)
+
+
+selectionFromCellInfo : Types.Position -> Direction -> Puzzle -> Types.CellInfo -> Maybe Selection
+selectionFromCellInfo pos preferredDir puzzle cellInfo =
+    let
+        first =
+            Types.clueIdForDirection preferredDir cellInfo
+
+        second =
+            Types.clueIdForDirection (Types.flipDirection preferredDir) cellInfo
+    in
+    case first of
+        Just cid ->
+            selectionForClueId pos cid puzzle
+
+        Nothing ->
+            Maybe.andThen (\cid -> selectionForClueId pos cid puzzle) second
+
+
+selectionForClueId : Types.Position -> ClueId -> Puzzle -> Maybe Selection
+selectionForClueId pos cid puzzle =
+    Types.lookupClue cid puzzle
+        |> Maybe.map (\clue -> { clueId = cid, cellIndex = Grid.cellIndexFromPosition pos clue })
