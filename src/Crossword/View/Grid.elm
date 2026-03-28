@@ -79,7 +79,7 @@ viewGrid puzzle grid selection =
                 |> Maybe.andThen
                     (\sel ->
                         lookupClue sel.clueId puzzle
-                            |> Maybe.map (Grid.clueCell sel.cellIndex)
+                            |> Maybe.map (Grid.positionFromCellIndex sel.cellIndex)
                     )
 
         cells =
@@ -285,7 +285,7 @@ highlightedPositions puzzle sel =
                                 List.range 0 (groupClue.length - 1)
                                     |> List.map
                                         (\idx ->
-                                            Grid.clueCell idx groupClue
+                                            Grid.positionFromCellIndex idx groupClue
                                         )
 
                             Nothing ->

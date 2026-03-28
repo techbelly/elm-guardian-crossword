@@ -11,7 +11,6 @@ import Crossword.Types as Types
     exposing
         ( Arrow(..)
         , Direction(..)
-        , Clue
         , ClueId
         , Puzzle
         , Selection
@@ -36,34 +35,36 @@ prevCell puzzle sel =
 
 arrowMove : Arrow -> Puzzle -> Selection -> Selection
 arrowMove arrow puzzle sel =
-    let
-        currentPos =
-            selectionPosition sel puzzle
-
-        move positionsIn stepFn =
-            stepFn currentPos (positionsIn currentPos puzzle)
-
-        ( target, preferredDir ) =
-            case arrow of
-                ArrowLeft ->
-                    ( move rowPositions ListExtra.prevInList, Across )
-
-                ArrowRight ->
-                    ( move rowPositions ListExtra.nextInList, Across )
-
-                ArrowUp ->
-                    ( move colPositions ListExtra.prevInList, Down )
-
-                ArrowDown ->
-                    ( move colPositions ListExtra.nextInList, Down )
-    in
-    case target of
-        Just pos ->
-            selectionForPosition pos preferredDir puzzle
-                |> Maybe.withDefault sel
-
+    case selectionPosition sel puzzle of
         Nothing ->
             sel
+
+        Just currentPos ->
+            let
+                move positionsIn stepFn =
+                    stepFn currentPos (positionsIn currentPos puzzle)
+
+                ( target, preferredDir ) =
+                    case arrow of
+                        ArrowLeft ->
+                            ( move rowPositions ListExtra.prevInList, Across )
+
+                        ArrowRight ->
+                            ( move rowPositions ListExtra.nextInList, Across )
+
+                        ArrowUp ->
+                            ( move colPositions ListExtra.prevInList, Down )
+
+                        ArrowDown ->
+                            ( move colPositions ListExtra.nextInList, Down )
+            in
+            case target of
+                Just pos ->
+                    selectionForPosition pos preferredDir puzzle
+                        |> Maybe.withDefault sel
+
+                Nothing ->
+                    sel
 
 
 nextClue : Puzzle -> Selection -> Selection
@@ -84,19 +85,12 @@ prevClue puzzle sel =
         |> Maybe.withDefault sel
 
 
-
--- List navigation helpers
-
-
-
-
-
 -- Building selection lists
 
 
 groupSelections : ClueId -> Puzzle -> List Selection
 groupSelections clueId puzzle =
-    case lookupClue clueId puzzle of
+    case Types.lookupClue clueId puzzle of
         Nothing ->
             []
 
@@ -107,7 +101,7 @@ groupSelections clueId puzzle =
 
 clueSelections : ClueId -> Puzzle -> List Selection
 clueSelections cid puzzle =
-    case lookupClue cid puzzle of
+    case Types.lookupClue cid puzzle of
         Nothing ->
             []
 
@@ -132,36 +126,29 @@ colPositions ( col, _ ) puzzle =
         |> List.sortBy Tuple.second
 
 
-
 -- Position and clue resolution
 
 
-selectionPosition : Selection -> Puzzle -> Types.Position
+selectionPosition : Selection -> Puzzle -> Maybe Types.Position
 selectionPosition sel puzzle =
-    case lookupClue sel.clueId puzzle of
-        Just clue ->
-            Grid.clueCell sel.cellIndex clue
-
-        Nothing ->
-            ( 0, 0 )
+    Types.lookupClue sel.clueId puzzle
+        |> Maybe.map (Grid.positionFromCellIndex sel.cellIndex)
 
 
-selectionForPosition : Types.Position -> Direction -> Puzzle -> Maybe Selection
+selectionForPosition : Types.Position -> Types.Direction -> Puzzle -> Maybe Selection
 selectionForPosition pos preferredDir puzzle =
     Dict.get pos puzzle.cellInfos
         |> Maybe.andThen (selectionFromCellInfo pos preferredDir puzzle)
 
 
-selectionFromCellInfo : Types.Position -> Direction -> Puzzle -> Types.CellInfo -> Maybe Selection
+selectionFromCellInfo : Types.Position -> Types.Direction -> Puzzle -> Types.CellInfo -> Maybe Selection
 selectionFromCellInfo pos preferredDir puzzle cellInfo =
     let
-        ( first, second ) =
-            case preferredDir of
-                Across ->
-                    ( Types.acrossClueId cellInfo, Types.downClueId cellInfo )
+        first =
+            Types.clueIdForDirection preferredDir cellInfo
 
-                Down ->
-                    ( Types.downClueId cellInfo, Types.acrossClueId cellInfo )
+        second =
+            Types.clueIdForDirection (Types.flipDirection preferredDir) cellInfo
     in
     case first of
         Just cid ->
@@ -173,31 +160,10 @@ selectionFromCellInfo pos preferredDir puzzle cellInfo =
 
 selectionForClueId : Types.Position -> ClueId -> Puzzle -> Maybe Selection
 selectionForClueId pos cid puzzle =
-    lookupClue cid puzzle
+    Types.lookupClue cid puzzle
         |> Maybe.map
             (\clue ->
                 { clueId = cid
-                , cellIndex = computeCellIndex pos clue
+                , cellIndex = Grid.cellIndexFromPosition pos clue
                 }
             )
-
-
-computeCellIndex : Types.Position -> Clue -> Int
-computeCellIndex ( c, r ) clue =
-    let
-        ( clueCol, clueRow ) =
-            clue.position
-    in
-    case clue.id.direction of
-        Across ->
-            c - clueCol
-
-        Down ->
-            r - clueRow
-
-
-lookupClue : ClueId -> Puzzle -> Maybe Clue
-lookupClue cid puzzle =
-    puzzle.clues
-        |> List.filter (\c -> c.id == cid)
-        |> List.head

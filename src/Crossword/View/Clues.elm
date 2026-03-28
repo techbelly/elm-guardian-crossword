@@ -1,4 +1,4 @@
-module Crossword.View.Clues exposing (viewCluePanel, viewStickyBar)
+module Crossword.View.Clues exposing (clueElementId, viewCluePanel, viewStickyBar)
 
 import Crossword.Grid as Grid
 import Crossword.Types
@@ -10,6 +10,7 @@ import Crossword.Types
         , Msg(..)
         , Puzzle
         , Selection
+        , lookupClue
         )
 import Html exposing (Html, div, h3, li, ol, span, text)
 import Html.Attributes as Attr
@@ -27,10 +28,10 @@ viewStickyBar puzzle selection =
                 Nothing ->
                     div [ Attr.class "crossword__sticky-clue" ] []
 
-                Just entry ->
+                Just clue ->
                     let
                         dirLabel =
-                            case entry.id.direction of
+                            case clue.id.direction of
                                 Across ->
                                     "across"
 
@@ -39,9 +40,9 @@ viewStickyBar puzzle selection =
                     in
                     div [ Attr.class "crossword__sticky-clue" ]
                         [ span [ Attr.class "crossword__sticky-clue-number" ]
-                            [ text (entry.humanNumber ++ " " ++ dirLabel) ]
+                            [ text (clue.humanNumber ++ " " ++ dirLabel) ]
                         , span [ Attr.class "crossword__sticky-clue-text" ]
-                            [ text (" " ++ entry.text) ]
+                            [ text (" " ++ clue.text) ]
                         ]
 
 
@@ -54,39 +55,39 @@ viewCluePanel puzzle grid selection =
                 |> Maybe.map .group
                 |> Maybe.withDefault []
 
-        acrossEntries =
+        acrossClues =
             puzzle.clues
-                |> List.filter (\e -> e.id.direction == Across)
-                |> List.sortBy (\e -> e.id.number)
+                |> List.filter (\c -> c.id.direction == Across)
+                |> List.sortBy (\c -> c.id.number)
 
-        downEntries =
+        downClues =
             puzzle.clues
-                |> List.filter (\e -> e.id.direction == Down)
-                |> List.sortBy (\e -> e.id.number)
+                |> List.filter (\c -> c.id.direction == Down)
+                |> List.sortBy (\c -> c.id.number)
     in
     div [ Attr.class "crossword__clues" ]
-        [ viewClueSection "Across" acrossEntries grid activeGroup
-        , viewClueSection "Down" downEntries grid activeGroup
+        [ viewClueSection "Across" acrossClues grid activeGroup
+        , viewClueSection "Down" downClues grid activeGroup
         ]
 
 
 viewClueSection : String -> List Clue -> Grid -> List ClueId -> Html Msg
-viewClueSection title entries grid activeGroup =
+viewClueSection title clues grid activeGroup =
     div [ Attr.class ("crossword__clues-section crossword__clues-section--" ++ String.toLower title) ]
         [ h3 [ Attr.class "crossword__clues-header" ] [ text title ]
         , ol [ Attr.class "crossword__clues-list" ]
-            (List.map (\entry -> viewClueItem entry grid activeGroup) entries)
+            (List.map (\clue -> viewClueItem clue grid activeGroup) clues)
         ]
 
 
 viewClueItem : Clue -> Grid -> List ClueId -> Html Msg
-viewClueItem entry grid activeGroup =
+viewClueItem clue grid activeGroup =
     let
         isSelected =
-            List.any (\eid -> eid == entry.id) activeGroup
+            List.any (\cid -> cid == clue.id) activeGroup
 
         isAnswered =
-            Grid.isClueAnswered entry grid
+            Grid.isClueAnswered clue grid
 
         classes =
             [ ( "crossword__clue", True )
@@ -99,11 +100,11 @@ viewClueItem entry grid activeGroup =
     in
     li
         [ Attr.class classes
-        , Attr.id (clueElementId entry.id)
-        , Html.Events.onClick (ClueClicked entry.id)
+        , Attr.id (clueElementId clue.id)
+        , Html.Events.onClick (ClueClicked clue.id)
         ]
-        [ span [ Attr.class "crossword__clue-number" ] [ text entry.humanNumber ]
-        , span [ Attr.class "crossword__clue-text" ] [ text (" " ++ entry.text) ]
+        [ span [ Attr.class "crossword__clue-number" ] [ text clue.humanNumber ]
+        , span [ Attr.class "crossword__clue-text" ] [ text (" " ++ clue.text) ]
         ]
 
 
@@ -119,10 +120,3 @@ clueElementId cid =
                     "down"
     in
     "clue-" ++ String.fromInt cid.number ++ "-" ++ dir
-
-
-lookupClue : ClueId -> Puzzle -> Maybe Clue
-lookupClue cid puzzle =
-    puzzle.clues
-        |> List.filter (\c -> c.id == cid)
-        |> List.head

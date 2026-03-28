@@ -1,7 +1,8 @@
 module Crossword.Grid exposing
     ( get
     , isClueAnswered
-    , clueCell
+    , cellIndexFromPosition
+    , positionFromCellIndex
     , set
     )
 
@@ -27,8 +28,8 @@ set pos value grid =
     Dict.insert pos value grid
 
 
-clueCell : Int -> Clue -> Position
-clueCell idx clue =
+positionFromCellIndex : Int -> Clue -> Position
+positionFromCellIndex idx clue =
     let
         ( col, row ) =
             clue.position
@@ -41,12 +42,26 @@ clueCell idx clue =
             ( col, row + idx )
 
 
+cellIndexFromPosition : Position -> Clue -> Int
+cellIndexFromPosition ( c, r ) clue =
+    let
+        ( clueCol, clueRow ) =
+            clue.position
+    in
+    case clue.id.direction of
+        Across ->
+            c - clueCol
+
+        Down ->
+            r - clueRow
+
+
 isClueAnswered : Clue -> Grid -> Bool
 isClueAnswered clue grid =
     List.range 0 (clue.length - 1)
         |> List.all
             (\idx ->
-                case get (clueCell idx clue) grid of
+                case get (positionFromCellIndex idx clue) grid of
                     Filled _ ->
                         True
 

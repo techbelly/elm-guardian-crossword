@@ -31,15 +31,16 @@ selectKnownCell clickPos cellInfo currentSelection puzzle =
             freshSelection clickPos cellInfo puzzle
 
         Just sel ->
-            if selectionPosition puzzle sel == Just clickPos then
+            if selectionPosition sel puzzle == Just clickPos then
                 toggleDirection clickPos cellInfo sel puzzle
 
-            else if cellInActiveGroup clickPos sel puzzle then
-                moveCursorWithinClue clickPos sel puzzle
-                    |> Maybe.withDefault (freshSelection clickPos cellInfo puzzle)
-
             else
-                freshSelection clickPos cellInfo puzzle
+                case moveCursorWithinClue clickPos sel puzzle of
+                    Just newSel ->
+                        newSel
+
+                    Nothing ->
+                        freshSelection clickPos cellInfo puzzle
 
 
 freshSelection : Types.Position -> CellInfo -> Puzzle -> Selection
@@ -58,97 +59,35 @@ freshSelection cellPos cellInfo puzzle =
 
 toggleDirection : Types.Position -> CellInfo -> Selection -> Puzzle -> Selection
 toggleDirection cellPos cellInfo sel puzzle =
-    let
-        currentDir =
-            sel.clueId.direction
+    case Types.clueIdForDirection (Types.flipDirection sel.clueId.direction) cellInfo of
+        Nothing ->
+            sel
 
-        newDir =
-            Types.flipDirection currentDir
-
-        hasNewDir =
-            case newDir of
-                Across ->
-                    Types.acrossClueId cellInfo /= Nothing
-
-                Down ->
-                    Types.downClueId cellInfo /= Nothing
-    in
-    if hasNewDir then
-        let
-            newClueId =
-                case newDir of
-                    Across ->
-                        Maybe.withDefault sel.clueId (Types.acrossClueId cellInfo)
-
-                    Down ->
-                        Maybe.withDefault sel.clueId (Types.downClueId cellInfo)
-        in
-        withClue newClueId puzzle
-            (\clue ->
-                Just
-                    { clueId = newClueId
-                    , cellIndex = computeCellIndex cellPos clue
-                    }
-            )
-            |> Maybe.withDefault sel
-
-    else
-        sel
+        Just newClueId ->
+            withClue newClueId puzzle
+                (\clue -> Just { clueId = newClueId, cellIndex = Grid.cellIndexFromPosition cellPos clue })
+                |> Maybe.withDefault sel
 
 
 pickClueAndIndex : Types.Position -> Direction -> CellInfo -> Puzzle -> Selection
 pickClueAndIndex cellPos preferredDir cellInfo puzzle =
     let
-        tryClue : Maybe ClueId -> Maybe Selection
         tryClue maybeClueId =
             maybeClueId
                 |> Maybe.andThen
                     (\cid ->
                         withClue cid puzzle
-                            (\clue ->
-                                Just
-                                    { clueId = cid
-                                    , cellIndex = computeCellIndex cellPos clue
-                                    }
-                            )
+                            (\clue -> Just { clueId = cid, cellIndex = Grid.cellIndexFromPosition cellPos clue })
                     )
 
         fallback =
             { clueId = { number = 0, direction = Across }, cellIndex = 0 }
     in
-    case preferredDir of
-        Across ->
-            tryClue (Types.acrossClueId cellInfo)
-                |> Maybe.withDefault
-                    (tryClue (Types.downClueId cellInfo)
-                        |> Maybe.withDefault fallback
-                    )
-
-        Down ->
-            tryClue (Types.downClueId cellInfo)
-                |> Maybe.withDefault
-                    (tryClue (Types.acrossClueId cellInfo)
-                        |> Maybe.withDefault fallback
-                    )
-
-
-computeCellIndex : Types.Position -> Clue -> Int
-computeCellIndex ( c, r ) clue =
-    let
-        ( clueCol, clueRow ) =
-            clue.position
-    in
-    case clue.id.direction of
-        Across ->
-            c - clueCol
-
-        Down ->
-            r - clueRow
-
-
-cellInActiveGroup : Types.Position -> Selection -> Puzzle -> Bool
-cellInActiveGroup cellPos sel puzzle =
-    moveCursorWithinClue cellPos sel puzzle /= Nothing
+    tryClue (Types.clueIdForDirection preferredDir cellInfo)
+        |> Maybe.withDefault
+            (tryClue (Types.clueIdForDirection (Types.flipDirection preferredDir) cellInfo)
+                |> Maybe.withDefault fallback
+            )
 
 
 moveCursorWithinClue : Types.Position -> Selection -> Puzzle -> Maybe Selection
@@ -165,23 +104,23 @@ selectionAtPosition : Types.Position -> Types.ClueId -> Puzzle -> Maybe Selectio
 selectionAtPosition pos clueId puzzle =
     withClue clueId puzzle
         (\clue ->
-            List.range 0 (clue.length - 1)
-                |> List.filter
-                    (\idx -> Grid.clueCell idx clue == pos)
-                |> List.head
-                |> Maybe.map (\idx -> { clueId = clueId, cellIndex = idx })
+            let
+                idx =
+                    Grid.cellIndexFromPosition pos clue
+            in
+            if idx >= 0 && idx < clue.length then
+                Just { clueId = clueId, cellIndex = idx }
+
+            else
+                Nothing
         )
 
 
-selectionPosition : Puzzle -> Selection -> Maybe Types.Position
-selectionPosition puzzle sel =
-    withClue sel.clueId puzzle
-        (Grid.clueCell sel.cellIndex >> Just)
+selectionPosition : Selection -> Puzzle -> Maybe Types.Position
+selectionPosition sel puzzle =
+    withClue sel.clueId puzzle (Grid.positionFromCellIndex sel.cellIndex >> Just)
 
 
 withClue : ClueId -> Puzzle -> (Clue -> Maybe a) -> Maybe a
-withClue clueId puzzle f =
-    puzzle.clues
-        |> List.filter (\c -> c.id == clueId)
-        |> List.head
-        |> Maybe.andThen f
+withClue cid puzzle f =
+    Types.lookupClue cid puzzle |> Maybe.andThen f

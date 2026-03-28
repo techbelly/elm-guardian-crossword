@@ -17,9 +17,9 @@ module Crossword.Types exposing
     , Selection
     , ClueSeparator(..)
     , SeparatorKind(..)
-    , acrossClueId
-    , downClueId
+    , clueIdForDirection
     , flipDirection
+    , lookupClue
     )
 
 import Dict exposing (Dict)
@@ -116,8 +116,8 @@ type CellClues
 acrossClueId : CellInfo -> Maybe ClueId
 acrossClueId info =
     case info.clues of
-        AcrossOnly eid ->
-            Just eid
+        AcrossOnly cid ->
+            Just cid
 
         AcrossAndDown e ->
             Just e.across
@@ -129,14 +129,31 @@ acrossClueId info =
 downClueId : CellInfo -> Maybe ClueId
 downClueId info =
     case info.clues of
-        DownOnly eid ->
-            Just eid
+        DownOnly cid ->
+            Just cid
 
         AcrossAndDown e ->
             Just e.down
 
         AcrossOnly _ ->
             Nothing
+
+
+clueIdForDirection : Direction -> CellInfo -> Maybe ClueId
+clueIdForDirection dir info =
+    case dir of
+        Across ->
+            acrossClueId info
+
+        Down ->
+            downClueId info
+
+
+lookupClue : ClueId -> Puzzle -> Maybe Clue
+lookupClue cid puzzle =
+    puzzle.clues
+        |> List.filter (\c -> c.id == cid)
+        |> List.head
 
 
 

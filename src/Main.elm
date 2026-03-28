@@ -57,12 +57,8 @@ init flags =
         Ok puzzle ->
             let
                 grid =
-                    case Json.Decode.decodeValue Decode.decodeGrid flags.savedGrid of
-                        Ok savedGrid ->
-                            savedGrid
-
-                        Err _ ->
-                            Dict.empty
+                    Json.Decode.decodeValue Decode.decodeGrid flags.savedGrid
+                        |> Result.withDefault Dict.empty
             in
             ( Active { puzzle = puzzle, grid = grid, selection = Nothing }
             , Cmd.none
@@ -109,8 +105,8 @@ updateActive msg model =
         KeyPressed key shiftKey ->
             handleKey key shiftKey model
 
-        ClueClicked eid ->
-            ( { model | selection = Just { clueId = eid, cellIndex = 0 } }
+        ClueClicked cid ->
+            ( { model | selection = Just { clueId = cid, cellIndex = 0 } }
             , Cmd.none
             )
 
@@ -194,42 +190,39 @@ handleKey key shiftKey model =
             in
             case categorizeKey key shiftKey of
                 Letter ch ->
-                    let
-                        pos =
-                            selectionPosition puzzle sel
+                    case selectionPosition sel puzzle of
+                        Nothing ->
+                            ( model, Cmd.none )
 
-                        newGrid =
-                            Grid.set pos (Filled ch) model.grid
-
-                        newSel =
-                            Navigation.nextCell puzzle sel
-                    in
-                    ( { model | grid = newGrid, selection = Just newSel }
-                    , saveGrid (Encode.encodeGrid newGrid)
-                    )
-
-                Backspace ->
-                    let
-                        pos =
-                            selectionPosition puzzle sel
-
-                        currentValue =
-                            Grid.get pos model.grid
-                    in
-                    case currentValue of
-                        Filled _ ->
+                        Just pos ->
                             let
                                 newGrid =
-                                    Grid.set pos Empty model.grid
+                                    Grid.set pos (Filled ch) model.grid
                             in
-                            ( { model | grid = newGrid }
+                            ( { model | grid = newGrid, selection = Just (Navigation.nextCell puzzle sel) }
                             , saveGrid (Encode.encodeGrid newGrid)
                             )
 
-                        Empty ->
-                            ( { model | selection = Just (Navigation.prevCell puzzle sel) }
-                            , Cmd.none
-                            )
+                Backspace ->
+                    case selectionPosition sel puzzle of
+                        Nothing ->
+                            ( model, Cmd.none )
+
+                        Just pos ->
+                            case Grid.get pos model.grid of
+                                Filled _ ->
+                                    let
+                                        newGrid =
+                                            Grid.set pos Empty model.grid
+                                    in
+                                    ( { model | grid = newGrid }
+                                    , saveGrid (Encode.encodeGrid newGrid)
+                                    )
+
+                                Empty ->
+                                    ( { model | selection = Just (Navigation.prevCell puzzle sel) }
+                                    , Cmd.none
+                                    )
 
                 Arrow dir ->
                     ( { model | selection = Just (Navigation.arrowMove dir puzzle sel) }
@@ -250,35 +243,15 @@ handleKey key shiftKey model =
                     ( model, Cmd.none )
 
 
-selectionPosition : Puzzle -> Selection -> Types.Position
-selectionPosition puzzle sel =
-    case lookupClue sel.clueId puzzle of
-        Just entry ->
-            Grid.clueCell sel.cellIndex entry
-
-        Nothing ->
-            ( 0, 0 )
-
-
-lookupClue : Types.ClueId -> Puzzle -> Maybe Types.Clue
-lookupClue cid puzzle =
-    puzzle.clues
-        |> List.filter (\c -> c.id == cid)
-        |> List.head
+selectionPosition : Selection -> Puzzle -> Maybe Types.Position
+selectionPosition sel puzzle =
+    Types.lookupClue sel.clueId puzzle
+        |> Maybe.map (Grid.positionFromCellIndex sel.cellIndex)
 
 
 scrollToClueElement : Types.ClueId -> Cmd Msg
 scrollToClueElement cid =
-    let
-        dir =
-            case cid.direction of
-                Types.Across ->
-                    "across"
-
-                Types.Down ->
-                    "down"
-    in
-    scrollIntoView ("clue-" ++ String.fromInt cid.number ++ "-" ++ dir)
+    scrollIntoView (ViewClues.clueElementId cid)
 
 
 shouldPreventDefault : String -> Bool
