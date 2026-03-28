@@ -53,7 +53,7 @@ selectKnownCell clickPos cellInfo currentSelection puzzle =
                 toggleDirection clickPos cellInfo sel puzzle
 
             else
-                case moveCursorWithinClue clickPos sel puzzle of
+                case findInGroup clickPos sel puzzle of
                     Just newSel ->
                         newSel
 
@@ -72,7 +72,7 @@ freshSelection cellPos cellInfo puzzle =
                 _ ->
                     Across
     in
-    pickClueAndIndex cellPos direction cellInfo puzzle
+    selectPreferring cellPos direction cellInfo puzzle
 
 
 toggleDirection : Types.Position -> CellInfo -> Selection -> Puzzle -> Selection
@@ -86,8 +86,8 @@ toggleDirection cellPos cellInfo sel puzzle =
                 |> Maybe.withDefault sel
 
 
-pickClueAndIndex : Types.Position -> Direction -> CellInfo -> Puzzle -> Selection
-pickClueAndIndex cellPos preferredDir cellInfo puzzle =
+selectPreferring : Types.Position -> Direction -> CellInfo -> Puzzle -> Selection
+selectPreferring cellPos preferredDir cellInfo puzzle =
     let
         tryClue maybeClueId =
             maybeClueId |> Maybe.andThen (\cid -> selectionForClueId cellPos cid puzzle)
@@ -102,19 +102,19 @@ pickClueAndIndex cellPos preferredDir cellInfo puzzle =
             )
 
 
-moveCursorWithinClue : Types.Position -> Selection -> Puzzle -> Maybe Selection
-moveCursorWithinClue cellPos sel puzzle =
+findInGroup : Types.Position -> Selection -> Puzzle -> Maybe Selection
+findInGroup cellPos sel puzzle =
     Types.lookupClue sel.clueId puzzle
         |> Maybe.andThen
             (\clue ->
                 clue.group
-                    |> List.filterMap (\cid -> selectionAtPosition cellPos cid puzzle)
+                    |> List.filterMap (\cid -> selectionIfInClue cellPos cid puzzle)
                     |> List.head
             )
 
 
-selectionAtPosition : Types.Position -> ClueId -> Puzzle -> Maybe Selection
-selectionAtPosition pos clueId puzzle =
+selectionIfInClue : Types.Position -> ClueId -> Puzzle -> Maybe Selection
+selectionIfInClue pos clueId puzzle =
     Types.lookupClue clueId puzzle
         |> Maybe.andThen
             (\clue ->
@@ -186,7 +186,7 @@ nextClue puzzle sel =
     puzzle.clues
         |> List.map .id
         |> ListExtra.nextInList sel.clueId
-        |> Maybe.map (\cid -> { clueId = cid, cellIndex = 0 })
+        |> Maybe.map selectClue
         |> Maybe.withDefault sel
 
 
@@ -195,7 +195,7 @@ prevClue puzzle sel =
     puzzle.clues
         |> List.map .id
         |> ListExtra.prevInList sel.clueId
-        |> Maybe.map (\cid -> { clueId = cid, cellIndex = 0 })
+        |> Maybe.map selectClue
         |> Maybe.withDefault sel
 
 
@@ -254,13 +254,17 @@ selectionForPosition pos preferredDir puzzle =
 
 selectionFromCellInfo : Types.Position -> Direction -> Puzzle -> Types.CellInfo -> Maybe Selection
 selectionFromCellInfo pos preferredDir puzzle cellInfo =
-    case Types.clueIdForDirection preferredDir cellInfo of
-        Just cid ->
-            selectionForClueId pos cid puzzle
-
-        Nothing ->
-            Types.clueIdForDirection (Types.flipDirection preferredDir) cellInfo
+    let
+        tryDir dir =
+            Types.clueIdForDirection dir cellInfo
                 |> Maybe.andThen (\cid -> selectionForClueId pos cid puzzle)
+    in
+    case tryDir preferredDir of
+        Nothing ->
+            tryDir (Types.flipDirection preferredDir)
+
+        result ->
+            result
 
 
 selectionForClueId : Types.Position -> ClueId -> Puzzle -> Maybe Selection
