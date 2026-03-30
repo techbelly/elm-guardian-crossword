@@ -26,12 +26,12 @@ type alias Fixture =
 
 type alias WhiteCell =
     { value : Maybe Char
-    , selected : Bool
+    , selectedDir : Maybe Direction
     }
 
 
-fromGrid : Direction -> List String -> Fixture
-fromGrid selectionDir rows =
+fromGrid : List String -> Fixture
+fromGrid rows =
     let
         rawCells : Dict Position (Maybe WhiteCell)
         rawCells =
@@ -96,20 +96,16 @@ fromGrid selectionDir rows =
             , cellInfos = cellInfos
             }
 
-        selectedPos : Maybe Position
-        selectedPos =
+        selectedInfo : Maybe ( Position, Direction )
+        selectedInfo =
             rawCells
                 |> Dict.toList
                 |> List.filterMap
                     (\( pos, maybeCell ) ->
                         maybeCell
                             |> Maybe.andThen
-                                (\{ selected } ->
-                                    if selected then
-                                        Just pos
-
-                                    else
-                                        Nothing
+                                (\{ selectedDir } ->
+                                    Maybe.map (Tuple.pair pos) selectedDir
                                 )
                     )
                 |> List.head
@@ -120,20 +116,20 @@ fromGrid selectionDir rows =
 
         selection : Selection
         selection =
-            selectedPos
+            selectedInfo
                 |> Maybe.andThen
-                    (\pos ->
+                    (\( pos, dir ) ->
                         let
                             maybeCid =
                                 Dict.get pos cellInfos
                                     |> Maybe.andThen
                                         (\cellInfo ->
-                                            case Types.clueIdForDirection selectionDir cellInfo of
+                                            case Types.clueIdForDirection dir cellInfo of
                                                 Just cid ->
                                                     Just cid
 
                                                 Nothing ->
-                                                    Types.clueIdForDirection (Types.flipDirection selectionDir) cellInfo
+                                                    Types.clueIdForDirection (Types.flipDirection dir) cellInfo
                                         )
                         in
                         maybeCid
@@ -176,7 +172,12 @@ renderGrid puzzle grid selection =
                                     String.fromChar ch
                     in
                     if selectedPos == Just ( col, row ) then
-                        "(" ++ cellStr ++ ")"
+                        case selection.clueId.direction of
+                            Across ->
+                                "→" ++ cellStr ++ " "
+
+                            Down ->
+                                "↓" ++ cellStr ++ " "
 
                     else
                         " " ++ cellStr ++ " "
@@ -207,20 +208,26 @@ parseRowChars rowIdx col chars acc =
             let
                 cell =
                     case ( a, b, c ) of
-                        ( '(', '_', ')' ) ->
-                            Just { value = Nothing, selected = True }
+                        ( '→', '_', ' ' ) ->
+                            Just { value = Nothing, selectedDir = Just Across }
 
-                        ( '(', ch, ')' ) ->
-                            Just { value = Just ch, selected = True }
+                        ( '→', ch, ' ' ) ->
+                            Just { value = Just ch, selectedDir = Just Across }
+
+                        ( '↓', '_', ' ' ) ->
+                            Just { value = Nothing, selectedDir = Just Down }
+
+                        ( '↓', ch, ' ' ) ->
+                            Just { value = Just ch, selectedDir = Just Down }
 
                         ( ' ', '*', ' ' ) ->
                             Nothing
 
                         ( ' ', '_', ' ' ) ->
-                            Just { value = Nothing, selected = False }
+                            Just { value = Nothing, selectedDir = Nothing }
 
                         ( ' ', ch, ' ' ) ->
-                            Just { value = Just ch, selected = False }
+                            Just { value = Just ch, selectedDir = Nothing }
 
                         _ ->
                             Nothing
