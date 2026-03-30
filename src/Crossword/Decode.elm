@@ -29,6 +29,38 @@ decodePuzzle =
         (Decode.field "dimensions" decodeDimensions)
         (Decode.field "entries" (Decode.list decodeClue))
         (Decode.field "crosswordType" Decode.string)
+        |> Decode.andThen validateGroups
+
+
+validateGroups : Puzzle -> Decoder Puzzle
+validateGroups puzzle =
+    let
+        firstInvalid =
+            puzzle.clues
+                |> List.concatMap .group
+                |> List.filter (\cid -> Types.lookupClue cid puzzle == Nothing)
+                |> List.head
+    in
+    case firstInvalid of
+        Nothing ->
+            Decode.succeed puzzle
+
+        Just cid ->
+            let
+                dirStr =
+                    case cid.direction of
+                        Across ->
+                            "across"
+
+                        Down ->
+                            "down"
+            in
+            Decode.fail
+                ("Clue group references unknown clue: "
+                    ++ String.fromInt cid.number
+                    ++ "-"
+                    ++ dirStr
+                )
 
 
 decodeDimensions : Decoder { cols : Int, rows : Int }
