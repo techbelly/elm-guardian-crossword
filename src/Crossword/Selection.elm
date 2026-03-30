@@ -95,11 +95,13 @@ selectPreferring cellPos preferredDir cellInfo puzzle =
         fallback =
             { clueId = { number = 0, direction = Across }, cellIndex = 0 }
     in
-    tryClue (Types.clueIdForDirection preferredDir cellInfo)
-        |> Maybe.withDefault
-            (tryClue (Types.clueIdForDirection (Types.flipDirection preferredDir) cellInfo)
+    case tryClue (Types.clueIdForDirection preferredDir cellInfo) of
+        Just sel ->
+            sel
+
+        Nothing ->
+            tryClue (Types.clueIdForDirection (Types.flipDirection preferredDir) cellInfo)
                 |> Maybe.withDefault fallback
-            )
 
 
 findInGroup : Types.Position -> Selection -> Puzzle -> Maybe Selection

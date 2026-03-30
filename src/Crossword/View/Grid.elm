@@ -1,6 +1,7 @@
 module Crossword.View.Grid exposing (viewGrid)
 
 import Crossword.Grid as Grid
+import Crossword.Selection as Selection
 import Crossword.Types
     exposing
         ( CellInfo
@@ -270,26 +271,9 @@ viewSeparator c r sep =
 
 highlightedPositions : Puzzle -> Selection -> Set ( Int, Int )
 highlightedPositions puzzle sel =
-    case lookupClue sel.clueId puzzle of
-        Nothing ->
-            Set.empty
-
-        Just clue ->
-            clue.group
-                |> List.concatMap
-                    (\cid ->
-                        case lookupClue cid puzzle of
-                            Just groupClue ->
-                                List.range 0 (groupClue.length - 1)
-                                    |> List.map
-                                        (\idx ->
-                                            Grid.positionFromCellIndex idx groupClue
-                                        )
-
-                            Nothing ->
-                                []
-                    )
-                |> Set.fromList
+    Selection.groupSelections sel.clueId puzzle
+        |> List.filterMap (\s -> Selection.selectionPosition s puzzle)
+        |> Set.fromList
 
 
 clueNumber : ClueStart -> Maybe Int

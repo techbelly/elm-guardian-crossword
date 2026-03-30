@@ -88,17 +88,13 @@ viewClueItem clue grid activeGroup =
         isAnswered =
             Grid.isClueAnswered clue grid
 
-        classes =
+    in
+    li
+        [ Attr.classList
             [ ( "crossword__clue", True )
             , ( "crossword__clue--selected", isSelected )
             , ( "crossword__clue--answered", isAnswered )
             ]
-                |> List.filter Tuple.second
-                |> List.map Tuple.first
-                |> String.join " "
-    in
-    li
-        [ Attr.class classes
         , Attr.id (clueElementId clue.id)
         , Html.Events.onClick (ClueClicked clue.id)
         ]
