@@ -453,31 +453,16 @@ clickSuite =
                     ]
         , test "clicking the selected cell again toggles the active direction" <|
             \_ ->
-                -- Start on 1-across at A. Click A again → switches to 1-down.
-                -- Consequence: Guardian Tab now goes to 2-down (C) instead of 3-across (F).
-                let
-                    fixture =
-                        Fixture.fromGrid
-                            [ "→A  B  C "
-                            , " D  *  E "
-                            , " F  G  H "
-                            ]
-
-                    toggled =
-                        Selection.selectCell ( 0, 0 ) (Just fixture.selection) fixture.puzzle
-                in
-                case toggled of
-                    Nothing ->
-                        Expect.fail "expected a selection after click"
-
-                    Just toggledSel ->
-                        Guardian.strategy.nextClue fixture.grid fixture.puzzle toggledSel
-                            |> Fixture.renderGrid fixture.puzzle fixture.grid
-                            |> Expect.equal
-                                [ " A  B ↓C "
-                                , " D  *  E "
-                                , " F  G  H "
-                                ]
+                click
+                    [ "→A  B  C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
+                    ( 0, 0 )
+                    [ "↓A  B  C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
         , test "clicking a black cell does not change the selection" <|
             \_ ->
                 let
