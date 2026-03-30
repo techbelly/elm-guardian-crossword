@@ -1,7 +1,7 @@
 module Crossword.View.Grid exposing (viewGrid)
 
 import Crossword.Grid as Grid
-import Crossword.Types as Types
+import Crossword.Types
     exposing
         ( CellInfo
         , CellSeparator
@@ -13,6 +13,7 @@ import Crossword.Types as Types
         , Puzzle
         , Selection
         , SeparatorKind(..)
+        , lookupClue
         )
 import Dict
 import Html exposing (Html)
@@ -273,11 +274,11 @@ highlightedPositions puzzle sel =
         Nothing ->
             Set.empty
 
-        Just entry ->
-            entry.group
+        Just clue ->
+            clue.group
                 |> List.concatMap
-                    (\eid ->
-                        case lookupClue eid puzzle of
+                    (\cid ->
+                        case lookupClue cid puzzle of
                             Just groupClue ->
                                 List.range 0 (groupClue.length - 1)
                                     |> List.map
@@ -307,8 +308,3 @@ clueNumber start =
             Just n
 
 
-lookupClue : Types.ClueId -> Puzzle -> Maybe Types.Clue
-lookupClue cid puzzle =
-    puzzle.clues
-        |> List.filter (\e -> e.id == cid)
-        |> List.head

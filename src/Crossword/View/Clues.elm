@@ -17,6 +17,16 @@ import Html.Attributes as Attr
 import Html.Events
 
 
+directionLabel : Direction -> String
+directionLabel dir =
+    case dir of
+        Across ->
+            "across"
+
+        Down ->
+            "down"
+
+
 viewStickyBar : Puzzle -> Maybe Selection -> Html Msg
 viewStickyBar puzzle selection =
     case selection of
@@ -29,18 +39,9 @@ viewStickyBar puzzle selection =
                     div [ Attr.class "crossword__sticky-clue" ] []
 
                 Just clue ->
-                    let
-                        dirLabel =
-                            case clue.id.direction of
-                                Across ->
-                                    "across"
-
-                                Down ->
-                                    "down"
-                    in
                     div [ Attr.class "crossword__sticky-clue" ]
                         [ span [ Attr.class "crossword__sticky-clue-number" ]
-                            [ text (clue.humanNumber ++ " " ++ dirLabel) ]
+                            [ text (clue.humanNumber ++ " " ++ directionLabel clue.id.direction) ]
                         , span [ Attr.class "crossword__sticky-clue-text" ]
                             [ text (" " ++ clue.text) ]
                         ]
@@ -58,12 +59,10 @@ viewCluePanel puzzle grid selection =
         acrossClues =
             puzzle.clues
                 |> List.filter (\c -> c.id.direction == Across)
-                |> List.sortBy (\c -> c.id.number)
 
         downClues =
             puzzle.clues
                 |> List.filter (\c -> c.id.direction == Down)
-                |> List.sortBy (\c -> c.id.number)
     in
     div [ Attr.class "crossword__clues" ]
         [ viewClueSection "Across" acrossClues grid activeGroup
@@ -110,13 +109,4 @@ viewClueItem clue grid activeGroup =
 
 clueElementId : ClueId -> String
 clueElementId cid =
-    let
-        dir =
-            case cid.direction of
-                Across ->
-                    "across"
-
-                Down ->
-                    "down"
-    in
-    "clue-" ++ String.fromInt cid.number ++ "-" ++ dir
+    "clue-" ++ String.fromInt cid.number ++ "-" ++ directionLabel cid.direction

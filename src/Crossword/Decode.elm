@@ -108,13 +108,13 @@ buildPuzzle id number name setter dims clues crosswordType =
     let
         acrossClues =
             clues
-                |> List.filter (\e -> e.id.direction == Across)
-                |> List.sortBy (\e -> e.id.number)
+                |> List.filter (\clue -> clue.id.direction == Across)
+                |> List.sortBy (\clue -> clue.id.number)
 
         downClues =
             clues
-                |> List.filter (\e -> e.id.direction == Down)
-                |> List.sortBy (\e -> e.id.number)
+                |> List.filter (\clue -> clue.id.direction == Down)
+                |> List.sortBy (\clue -> clue.id.number)
 
         sortedClues =
             acrossClues ++ downClues

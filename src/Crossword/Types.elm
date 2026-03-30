@@ -128,40 +128,23 @@ type CellClues
     | AcrossAndDown { across : ClueId, down : ClueId }
 
 
-acrossClueId : CellInfo -> Maybe ClueId
-acrossClueId info =
-    case info.clues of
-        AcrossOnly cid ->
-            Just cid
-
-        AcrossAndDown e ->
-            Just e.across
-
-        DownOnly _ ->
-            Nothing
-
-
-downClueId : CellInfo -> Maybe ClueId
-downClueId info =
-    case info.clues of
-        DownOnly cid ->
-            Just cid
-
-        AcrossAndDown e ->
-            Just e.down
-
-        AcrossOnly _ ->
-            Nothing
-
-
 clueIdForDirection : Direction -> CellInfo -> Maybe ClueId
 clueIdForDirection dir info =
-    case dir of
-        Across ->
-            acrossClueId info
+    case ( dir, info.clues ) of
+        ( Across, AcrossOnly cid ) ->
+            Just cid
 
-        Down ->
-            downClueId info
+        ( Across, AcrossAndDown both ) ->
+            Just both.across
+
+        ( Down, DownOnly cid ) ->
+            Just cid
+
+        ( Down, AcrossAndDown both ) ->
+            Just both.down
+
+        _ ->
+            Nothing
 
 
 lookupClue : ClueId -> Puzzle -> Maybe Clue
