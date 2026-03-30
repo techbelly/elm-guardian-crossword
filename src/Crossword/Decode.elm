@@ -164,9 +164,6 @@ addClueToCellInfos clue cellInfos =
                     key =
                         Grid.positionFromCellIndex idx clue
 
-                    isStart =
-                        idx == 0
-
                     cellSeps =
                         separatorPositions
                             |> List.filterMap
@@ -181,61 +178,71 @@ addClueToCellInfos clue cellInfos =
                     updated =
                         case Dict.get key acc of
                             Nothing ->
-                                { clues =
-                                    case clue.id.direction of
-                                        Across ->
-                                            AcrossOnly clue.id
-
-                                        Down ->
-                                            DownOnly clue.id
-                                , start =
-                                    if isStart then
-                                        case clue.id.direction of
-                                            Across ->
-                                                StartsAcross clue.id.number
-
-                                            Down ->
-                                                StartsDown clue.id.number
-
-                                    else
-                                        NotStart
-                                , separators = cellSeps
-                                }
+                                freshCellInfo clue.id (idx == 0) cellSeps
 
                             Just existing ->
-                                { clues =
-                                    case ( clue.id.direction, existing.clues ) of
-                                        ( Across, DownOnly d ) ->
-                                            AcrossAndDown { across = clue.id, down = d }
-
-                                        ( Down, AcrossOnly a ) ->
-                                            AcrossAndDown { across = a, down = clue.id }
-
-                                        _ ->
-                                            existing.clues
-                                , start =
-                                    if isStart then
-                                        case ( clue.id.direction, existing.start ) of
-                                            ( Across, StartsDown _ ) ->
-                                                StartsBoth clue.id.number
-
-                                            ( Down, StartsAcross _ ) ->
-                                                StartsBoth clue.id.number
-
-                                            ( Across, _ ) ->
-                                                StartsAcross clue.id.number
-
-                                            ( Down, _ ) ->
-                                                StartsDown clue.id.number
-
-                                    else
-                                        existing.start
-                                , separators = existing.separators ++ cellSeps
-                                }
+                                mergeCellInfo clue.id (idx == 0) cellSeps existing
                 in
                 Dict.insert key updated acc
             )
             cellInfos
+
+
+freshCellInfo : Types.ClueId -> Bool -> List Types.CellSeparator -> CellInfo
+freshCellInfo clueId isStart cellSeps =
+    { clues =
+        case clueId.direction of
+            Across ->
+                AcrossOnly clueId
+
+            Down ->
+                DownOnly clueId
+    , start =
+        if isStart then
+            case clueId.direction of
+                Across ->
+                    StartsAcross clueId.number
+
+                Down ->
+                    StartsDown clueId.number
+
+        else
+            NotStart
+    , separators = cellSeps
+    }
+
+
+mergeCellInfo : Types.ClueId -> Bool -> List Types.CellSeparator -> CellInfo -> CellInfo
+mergeCellInfo clueId isStart cellSeps existing =
+    { clues =
+        case ( clueId.direction, existing.clues ) of
+            ( Across, DownOnly d ) ->
+                AcrossAndDown { across = clueId, down = d }
+
+            ( Down, AcrossOnly a ) ->
+                AcrossAndDown { across = a, down = clueId }
+
+            _ ->
+                existing.clues
+    , start =
+        if isStart then
+            case ( clueId.direction, existing.start ) of
+                ( Across, StartsDown _ ) ->
+                    StartsBoth clueId.number
+
+                ( Down, StartsAcross _ ) ->
+                    StartsBoth clueId.number
+
+                ( Across, _ ) ->
+                    StartsAcross clueId.number
+
+                ( Down, _ ) ->
+                    StartsDown clueId.number
+
+        else
+            existing.start
+    , separators = existing.separators ++ cellSeps
+    }
 
 
 
