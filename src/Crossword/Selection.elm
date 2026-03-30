@@ -39,10 +39,10 @@ selectCell clickPos currentSelection puzzle =
             currentSelection
 
         Just cellInfo ->
-            Just (selectKnownCell clickPos cellInfo currentSelection puzzle)
+            selectKnownCell clickPos cellInfo currentSelection puzzle
 
 
-selectKnownCell : Types.Position -> CellInfo -> Maybe Selection -> Puzzle -> Selection
+selectKnownCell : Types.Position -> CellInfo -> Maybe Selection -> Puzzle -> Maybe Selection
 selectKnownCell clickPos cellInfo currentSelection puzzle =
     case currentSelection of
         Nothing ->
@@ -50,18 +50,18 @@ selectKnownCell clickPos cellInfo currentSelection puzzle =
 
         Just sel ->
             if selectionPosition sel puzzle == Just clickPos then
-                toggleDirection clickPos cellInfo sel puzzle
+                Just (toggleDirection clickPos cellInfo sel puzzle)
 
             else
                 case findInGroup clickPos sel puzzle of
                     Just newSel ->
-                        newSel
+                        Just newSel
 
                     Nothing ->
                         freshSelection clickPos cellInfo puzzle
 
 
-freshSelection : Types.Position -> CellInfo -> Puzzle -> Selection
+freshSelection : Types.Position -> CellInfo -> Puzzle -> Maybe Selection
 freshSelection cellPos cellInfo puzzle =
     let
         direction =
@@ -86,22 +86,18 @@ toggleDirection cellPos cellInfo sel puzzle =
                 |> Maybe.withDefault sel
 
 
-selectPreferring : Types.Position -> Direction -> CellInfo -> Puzzle -> Selection
+selectPreferring : Types.Position -> Direction -> CellInfo -> Puzzle -> Maybe Selection
 selectPreferring cellPos preferredDir cellInfo puzzle =
     let
         tryClue maybeClueId =
             maybeClueId |> Maybe.andThen (\cid -> selectionForClueId cellPos cid puzzle)
-
-        fallback =
-            { clueId = { number = 0, direction = Across }, cellIndex = 0 }
     in
     case tryClue (Types.clueIdForDirection preferredDir cellInfo) of
         Just sel ->
-            sel
+            Just sel
 
         Nothing ->
             tryClue (Types.clueIdForDirection (Types.flipDirection preferredDir) cellInfo)
-                |> Maybe.withDefault fallback
 
 
 findInGroup : Types.Position -> Selection -> Puzzle -> Maybe Selection
