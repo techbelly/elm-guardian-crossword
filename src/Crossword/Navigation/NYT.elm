@@ -60,9 +60,8 @@ isBlank grid puzzle sel =
 isLastInGroup : Puzzle -> Selection -> Bool
 isLastInGroup puzzle sel =
     Selection.groupSelections sel.clueId puzzle
-        |> List.reverse
-        |> List.head
-        |> Maybe.map (\last -> last == sel)
+        |> ListExtra.last
+        |> Maybe.map (\s -> s == sel)
         |> Maybe.withDefault False
 
 

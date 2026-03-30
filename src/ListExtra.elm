@@ -1,4 +1,4 @@
-module ListExtra exposing (findIndex, nextInList, prevInList)
+module ListExtra exposing (findIndex, last, nextInList, prevInList)
 
 
 nextInList : a -> List a -> Maybe a
@@ -37,7 +37,7 @@ prevInList current list =
             Nothing
 
         _ ->
-            prevInListHelper current list (lastOf list)
+            prevInListHelper current list (last list)
 
 
 prevInListHelper : a -> List a -> Maybe a -> Maybe a
@@ -54,8 +54,8 @@ prevInListHelper current list prev =
                 prevInListHelper current rest (Just item)
 
 
-lastOf : List a -> Maybe a
-lastOf list =
+last : List a -> Maybe a
+last list =
     case list of
         [] ->
             Nothing
@@ -64,7 +64,7 @@ lastOf list =
             Just x
 
         _ :: rest ->
-            lastOf rest
+            last rest
 
 
 findIndex : a -> List a -> Maybe Int
