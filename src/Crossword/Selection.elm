@@ -72,7 +72,7 @@ freshSelection cellPos cellInfo puzzle =
                 _ ->
                     Across
     in
-    selectPreferring cellPos direction cellInfo puzzle
+    selectionFromCellInfo cellPos direction puzzle cellInfo
 
 
 toggleDirection : Types.Position -> CellInfo -> Selection -> Puzzle -> Selection
@@ -84,20 +84,6 @@ toggleDirection cellPos cellInfo sel puzzle =
         Just newClueId ->
             selectionForClueId cellPos newClueId puzzle
                 |> Maybe.withDefault sel
-
-
-selectPreferring : Types.Position -> Direction -> CellInfo -> Puzzle -> Maybe Selection
-selectPreferring cellPos preferredDir cellInfo puzzle =
-    let
-        tryClue maybeClueId =
-            maybeClueId |> Maybe.andThen (\cid -> selectionForClueId cellPos cid puzzle)
-    in
-    case tryClue (Types.clueIdForDirection preferredDir cellInfo) of
-        Just sel ->
-            Just sel
-
-        Nothing ->
-            tryClue (Types.clueIdForDirection (Types.flipDirection preferredDir) cellInfo)
 
 
 findInGroup : Types.Position -> Selection -> Puzzle -> Maybe Selection

@@ -59,6 +59,11 @@ highlightedColor =
     "#d3e4fc"
 
 
+defaultCellColor : String
+defaultCellColor =
+    "#ffffff"
+
+
 viewGrid : Puzzle -> Grid -> Maybe Selection -> Html Msg
 viewGrid puzzle grid selection =
     let
@@ -133,7 +138,7 @@ viewCell c r cellInfo grid focusedPos highlighted =
                 highlightedColor
 
             else
-                "#ffffff"
+                defaultCellColor
 
         cellRect =
             Svg.rect
