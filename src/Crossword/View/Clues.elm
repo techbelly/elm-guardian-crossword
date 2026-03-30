@@ -3,13 +3,12 @@ module Crossword.View.Clues exposing (clueElementId, viewCluePanel, viewStickyBa
 import Crossword.Grid as Grid
 import Crossword.Types
     exposing
-        ( Direction(..)
+        ( ActiveModel
+        , Direction(..)
         , Clue
         , ClueId
         , Grid
         , Msg(..)
-        , Puzzle
-        , Selection
         , lookupClue
         )
 import Html exposing (Html, div, h3, li, ol, span, text)
@@ -27,14 +26,14 @@ directionLabel dir =
             "down"
 
 
-viewStickyBar : Puzzle -> Maybe Selection -> Html Msg
-viewStickyBar puzzle selection =
-    case selection of
+viewStickyBar : ActiveModel -> Html Msg
+viewStickyBar model =
+    case model.selection of
         Nothing ->
             div [ Attr.class "crossword__sticky-clue crossword__sticky-clue--empty" ] []
 
         Just sel ->
-            case lookupClue sel.clueId puzzle of
+            case lookupClue sel.clueId model.puzzle of
                 Nothing ->
                     div [ Attr.class "crossword__sticky-clue" ] []
 
@@ -47,26 +46,26 @@ viewStickyBar puzzle selection =
                         ]
 
 
-viewCluePanel : Puzzle -> Grid -> Maybe Selection -> Html Msg
-viewCluePanel puzzle grid selection =
+viewCluePanel : ActiveModel -> Html Msg
+viewCluePanel model =
     let
         activeGroup =
-            selection
-                |> Maybe.andThen (\sel -> lookupClue sel.clueId puzzle)
+            model.selection
+                |> Maybe.andThen (\sel -> lookupClue sel.clueId model.puzzle)
                 |> Maybe.map .group
                 |> Maybe.withDefault []
 
         acrossClues =
-            puzzle.clues
+            model.puzzle.clues
                 |> List.filter (\c -> c.id.direction == Across)
 
         downClues =
-            puzzle.clues
+            model.puzzle.clues
                 |> List.filter (\c -> c.id.direction == Down)
     in
     div [ Attr.class "crossword__clues" ]
-        [ viewClueSection "Across" acrossClues grid activeGroup
-        , viewClueSection "Down" downClues grid activeGroup
+        [ viewClueSection "Across" acrossClues model.grid activeGroup
+        , viewClueSection "Down" downClues model.grid activeGroup
         ]
 
 

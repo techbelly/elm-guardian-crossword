@@ -52,10 +52,10 @@ crosswordDisplay model =
             )
         ]
         [ ViewTitle.viewTitle model.puzzle
-        , ViewClues.viewStickyBar model.puzzle model.selection
+        , ViewClues.viewStickyBar model
         , div [ Attr.class "crossword__content" ]
-            [ ViewGrid.viewGrid model.puzzle model.grid model.selection
-            , ViewClues.viewCluePanel model.puzzle model.grid model.selection
+            [ ViewGrid.viewGrid model
+            , ViewClues.viewCluePanel model
             ]
         , viewNavigationToggle model.navigationStyle
         ]

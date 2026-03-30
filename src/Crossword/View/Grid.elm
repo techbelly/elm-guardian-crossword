@@ -4,7 +4,8 @@ import Crossword.Grid as Grid
 import Crossword.Selection as Selection
 import Crossword.Types
     exposing
-        ( CellInfo
+        ( ActiveModel
+        , CellInfo
         , CellSeparator
         , CellValue(..)
         , ClueStart(..)
@@ -64,37 +65,37 @@ defaultCellColor =
     "#ffffff"
 
 
-viewGrid : Puzzle -> Grid -> Maybe Selection -> Html Msg
-viewGrid puzzle grid selection =
+viewGrid : ActiveModel -> Html Msg
+viewGrid model =
     let
         width =
-            puzzle.dimensions.cols * cellStep + borderSize
+            model.puzzle.dimensions.cols * cellStep + borderSize
 
         height =
-            puzzle.dimensions.rows * cellStep + borderSize
+            model.puzzle.dimensions.rows * cellStep + borderSize
 
         highlighted =
-            case selection of
+            case model.selection of
                 Just sel ->
-                    highlightedPositions puzzle sel
+                    highlightedPositions model.puzzle sel
 
                 Nothing ->
                     Set.empty
 
         focusedPos =
-            selection
+            model.selection
                 |> Maybe.andThen
                     (\sel ->
-                        lookupClue sel.clueId puzzle
+                        lookupClue sel.clueId model.puzzle
                             |> Maybe.map (Grid.positionFromCellIndex sel.cellIndex)
                     )
 
         cells =
-            puzzle.cellInfos
+            model.puzzle.cellInfos
                 |> Dict.toList
                 |> List.concatMap
                     (\( ( c, r ), cellInfo ) ->
-                        viewCell c r cellInfo grid focusedPos highlighted
+                        viewCell c r cellInfo model.grid focusedPos highlighted
                     )
     in
     Svg.svg
