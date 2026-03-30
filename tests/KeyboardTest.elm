@@ -1,4 +1,4 @@
-module KeyboardTest exposing (..)
+module KeyboardTest exposing (suite)
 
 import Crossword.Keyboard as Keyboard
 import Crossword.Navigation.Guardian as Guardian
@@ -6,7 +6,7 @@ import Crossword.Navigation.NYT as NYT
 import Crossword.Types exposing (ActiveModel, NavigationStrategy, NavigationStyle(..))
 import Expect
 import Fixture
-import Test exposing (..)
+import Test exposing (Test, describe, test)
 
 
 toModel : Fixture.Fixture -> ActiveModel

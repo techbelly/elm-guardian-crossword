@@ -1,4 +1,4 @@
-module NavigationTest exposing (..)
+module NavigationTest exposing (suite)
 
 import Crossword.Navigation.Guardian as Guardian
 import Crossword.Navigation.NYT as NYT
@@ -6,7 +6,7 @@ import Crossword.Selection as Selection
 import Crossword.Types exposing (Arrow(..), ClueId, Direction(..), Grid, Puzzle, Selection)
 import Expect
 import Fixture
-import Test exposing (..)
+import Test exposing (Test, describe, test)
 
 
 {- The shared 3×3 grid structure used across all tests:
