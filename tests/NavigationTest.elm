@@ -422,6 +422,32 @@ clickSuite =
                     , "↓D  *  E "
                     , " F  G  H "
                     ]
+        , test "first click on a cell that only starts a down clue selects it in down" <|
+            \_ ->
+                -- C at (2,0) starts 2-down but not an across clue; freshSelection picks Down
+                clicks
+                    [ " A  B  C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
+                    ( 2, 0 )
+                    [ " A  B ↓C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
+        , test "clicking a different cell within the same down clue moves the selection there" <|
+            \_ ->
+                -- A at (0,0) selected in 1-down; clicking F at (0,2) stays in 1-down
+                clicks
+                    [ "↓A  B  C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
+                    ( 0, 2 )
+                    [ " A  B  C "
+                    , " D  *  E "
+                    , "↓F  G  H "
+                    ]
         ]
 
 
