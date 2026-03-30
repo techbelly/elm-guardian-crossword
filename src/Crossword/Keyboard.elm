@@ -1,4 +1,4 @@
-module Crossword.Keyboard exposing (handleKey, shouldPreventDefault)
+module Crossword.Keyboard exposing (handleBackspace, handleKey, handleLetter, shouldPreventDefault)
 
 import Crossword.Grid as Grid
 import Crossword.Selection as Selection
@@ -8,6 +8,8 @@ import Crossword.Types
         , Arrow(..)
         , CellValue(..)
         , NavigationStrategy
+        , Puzzle
+        , Selection
         )
 
 
@@ -33,45 +35,10 @@ handleKey strategy key shiftKey model =
             in
             case categorizeKey key shiftKey of
                 Letter ch ->
-                    case Selection.selectionPosition sel puzzle of
-                        Nothing ->
-                            ( model, False )
-
-                        Just pos ->
-                            let
-                                wasBlank =
-                                    Grid.get pos model.grid == Empty
-
-                                newGrid =
-                                    Grid.set pos (Filled ch) model.grid
-
-                                newSel =
-                                    strategy.afterLetter wasBlank newGrid puzzle sel
-                            in
-                            ( { model | grid = newGrid, selection = Just newSel }
-                            , True
-                            )
+                    handleLetter strategy ch sel model
 
                 Backspace ->
-                    case Selection.selectionPosition sel puzzle of
-                        Nothing ->
-                            ( model, False )
-
-                        Just pos ->
-                            case Grid.get pos model.grid of
-                                Filled _ ->
-                                    let
-                                        newGrid =
-                                            Grid.set pos Empty model.grid
-                                    in
-                                    ( { model | grid = newGrid }
-                                    , True
-                                    )
-
-                                Empty ->
-                                    ( { model | selection = Just (Selection.prevCell puzzle sel) }
-                                    , False
-                                    )
+                    handleBackspace puzzle sel model
 
                 Arrow dir ->
                     ( { model | selection = Just (Selection.arrowMove dir puzzle sel) }
@@ -90,6 +57,47 @@ handleKey strategy key shiftKey model =
 
                 Unhandled ->
                     ( model, False )
+
+
+handleLetter : NavigationStrategy -> Char -> Selection -> ActiveModel -> ( ActiveModel, Bool )
+handleLetter strategy ch sel model =
+    case Selection.selectionPosition sel model.puzzle of
+        Nothing ->
+            ( model, False )
+
+        Just pos ->
+            let
+                wasBlank =
+                    Grid.get pos model.grid == Empty
+
+                newGrid =
+                    Grid.set pos (Filled ch) model.grid
+
+                newSel =
+                    strategy.afterLetter wasBlank newGrid model.puzzle sel
+            in
+            ( { model | grid = newGrid, selection = Just newSel }
+            , True
+            )
+
+
+handleBackspace : Puzzle -> Selection -> ActiveModel -> ( ActiveModel, Bool )
+handleBackspace puzzle sel model =
+    case Selection.selectionPosition sel puzzle of
+        Nothing ->
+            ( model, False )
+
+        Just pos ->
+            case Grid.get pos model.grid of
+                Filled _ ->
+                    ( { model | grid = Grid.set pos Empty model.grid }
+                    , True
+                    )
+
+                Empty ->
+                    ( { model | selection = Just (Selection.prevCell puzzle sel) }
+                    , False
+                    )
 
 
 shouldPreventDefault : String -> Bool
