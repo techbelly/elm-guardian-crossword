@@ -8,8 +8,6 @@ import Crossword.Types
         , Arrow(..)
         , CellValue(..)
         , NavigationStrategy
-        , Puzzle
-        , Selection
         )
 
 
@@ -29,29 +27,25 @@ handleKey strategy key shiftKey model =
             ( model, False )
 
         Just sel ->
-            let
-                puzzle =
-                    model.puzzle
-            in
             case categorizeKey key shiftKey of
                 Letter ch ->
-                    handleLetter strategy ch sel model
+                    handleLetter strategy ch model
 
                 Backspace ->
-                    handleBackspace puzzle sel model
+                    handleBackspace model
 
                 Arrow dir ->
-                    ( { model | selection = Just (Selection.arrowMove dir puzzle sel) }
+                    ( { model | selection = Just (Selection.arrowMove dir model.puzzle sel) }
                     , False
                     )
 
                 Tab ->
-                    ( { model | selection = Just (strategy.nextClue model.grid puzzle sel) }
+                    ( { model | selection = Just (strategy.nextClue model.grid model.puzzle sel) }
                     , False
                     )
 
                 ShiftTab ->
-                    ( { model | selection = Just (strategy.prevClue model.grid puzzle sel) }
+                    ( { model | selection = Just (strategy.prevClue model.grid model.puzzle sel) }
                     , False
                     )
 
@@ -59,49 +53,59 @@ handleKey strategy key shiftKey model =
                     ( model, False )
 
 
-handleLetter : NavigationStrategy -> Char -> Selection -> ActiveModel -> ( ActiveModel, Bool )
-handleLetter strategy ch sel model =
-    case Selection.selectionPosition sel model.puzzle of
+handleLetter : NavigationStrategy -> Char -> ActiveModel -> ( ActiveModel, Bool )
+handleLetter strategy ch model =
+    case model.selection of
         Nothing ->
             ( model, False )
 
-        Just pos ->
-            let
-                wasBlank =
-                    Grid.get pos model.grid == Empty
+        Just sel ->
+            case Selection.selectionPosition sel model.puzzle of
+                Nothing ->
+                    ( model, False )
 
-                newGrid =
-                    Grid.set pos (Filled ch) model.grid
+                Just pos ->
+                    let
+                        wasBlank =
+                            Grid.get pos model.grid == Empty
 
-                newSel =
-                    strategy.afterLetter wasBlank newGrid model.puzzle sel
-            in
-            ( { model | grid = newGrid, selection = Just newSel }
-            , True
-            )
+                        newGrid =
+                            Grid.set pos (Filled ch) model.grid
 
-
-handleBackspace : Puzzle -> Selection -> ActiveModel -> ( ActiveModel, Bool )
-handleBackspace puzzle sel model =
-    case Selection.selectionPosition sel puzzle of
-        Nothing ->
-            ( model, False )
-
-        Just pos ->
-            case Grid.get pos model.grid of
-                Filled _ ->
-                    ( { model | grid = Grid.set pos Empty model.grid }
+                        newSel =
+                            strategy.afterLetter wasBlank newGrid model.puzzle sel
+                    in
+                    ( { model | grid = newGrid, selection = Just newSel }
                     , True
                     )
 
-                Empty ->
-                    if sel.cellIndex == 0 then
-                        ( model, False )
 
-                    else
-                        ( { model | selection = Just (Selection.prevCell puzzle sel) }
-                        , False
-                        )
+handleBackspace : ActiveModel -> ( ActiveModel, Bool )
+handleBackspace model =
+    case model.selection of
+        Nothing ->
+            ( model, False )
+
+        Just sel ->
+            case Selection.selectionPosition sel model.puzzle of
+                Nothing ->
+                    ( model, False )
+
+                Just pos ->
+                    case Grid.get pos model.grid of
+                        Filled _ ->
+                            ( { model | grid = Grid.set pos Empty model.grid }
+                            , True
+                            )
+
+                        Empty ->
+                            if sel.cellIndex == 0 then
+                                ( model, False )
+
+                            else
+                                ( { model | selection = Just (Selection.prevCell model.puzzle sel) }
+                                , False
+                                )
 
 
 shouldPreventDefault : String -> Bool

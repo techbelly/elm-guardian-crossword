@@ -75,8 +75,8 @@ clicks inputRows clickPos expectedRows =
 typesLetter : NavigationStrategy -> List String -> Char -> List String -> Expect.Expectation
 typesLetter strategy inputRows ch expectedRows =
     withSelection (Fixture.fromGrid inputRows)
-        (\fixture sel ->
-            Keyboard.handleLetter strategy ch sel (toModel fixture)
+        (\fixture _ ->
+            Keyboard.handleLetter strategy ch (toModel fixture)
                 |> Tuple.first
                 |> afterKeyOp expectedRows
         )
@@ -85,8 +85,8 @@ typesLetter strategy inputRows ch expectedRows =
 pressesBackspace : List String -> List String -> Expect.Expectation
 pressesBackspace inputRows expectedRows =
     withSelection (Fixture.fromGrid inputRows)
-        (\fixture sel ->
-            Keyboard.handleBackspace fixture.puzzle sel (toModel fixture)
+        (\fixture _ ->
+            Keyboard.handleBackspace (toModel fixture)
                 |> Tuple.first
                 |> afterKeyOp expectedRows
         )
