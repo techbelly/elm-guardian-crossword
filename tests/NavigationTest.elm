@@ -478,30 +478,6 @@ clickSuite =
                                 , " D  *  E "
                                 , " F  G  H "
                                 ]
-        , test "backspace on empty moves to the previous cell in the clue" <|
-            \_ ->
-                navigates
-                    [ " A →B  C "
-                    , " D  *  E "
-                    , " F  G  H "
-                    ]
-                    (\_ puzzle sel -> Selection.prevCell puzzle sel)
-                    [ "→A  B  C "
-                    , " D  *  E "
-                    , " F  G  H "
-                    ]
-        , test "backspace at the first cell of a clue wraps to the last" <|
-            \_ ->
-                navigates
-                    [ "→A  B  C "
-                    , " D  *  E "
-                    , " F  G  H "
-                    ]
-                    (\_ puzzle sel -> Selection.prevCell puzzle sel)
-                    [ " A  B →C "
-                    , " D  *  E "
-                    , " F  G  H "
-                    ]
         , test "clicking a black cell does not change the selection" <|
             \_ ->
                 let

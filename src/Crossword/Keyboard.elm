@@ -95,9 +95,13 @@ handleBackspace puzzle sel model =
                     )
 
                 Empty ->
-                    ( { model | selection = Just (Selection.prevCell puzzle sel) }
-                    , False
-                    )
+                    if sel.cellIndex == 0 then
+                        ( model, False )
+
+                    else
+                        ( { model | selection = Just (Selection.prevCell puzzle sel) }
+                        , False
+                        )
 
 
 shouldPreventDefault : String -> Bool
