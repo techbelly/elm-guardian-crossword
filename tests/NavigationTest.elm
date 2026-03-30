@@ -3,10 +3,11 @@ module NavigationTest exposing (suite)
 import Crossword.Navigation.Guardian as Guardian
 import Crossword.Navigation.NYT as NYT
 import Crossword.Selection as Selection
-import Crossword.Types exposing (Arrow(..), ClueId, Direction(..), Grid, Puzzle, Selection)
+import Crossword.Types exposing (Arrow(..), Direction(..))
 import Expect
 import Fixture
 import Test exposing (Test, describe, test)
+import TestHelpers exposing (clicks, navigates, selectsClue, withSelection)
 
 
 {- The shared 3×3 grid structure used across all tests:
@@ -23,62 +24,6 @@ import Test exposing (Test, describe, test)
 
     Guardian clue order: [1-across, 3-across, 1-down, 2-down]
 -}
-
-
--- Apply a navigation operation and compare the resulting selection against an expected grid.
-navigates :
-    List String
-    -> (Grid -> Puzzle -> Selection -> Selection)
-    -> List String
-    -> Expect.Expectation
-navigates inputRows navFn expectedRows =
-    let
-        fixture =
-            Fixture.fromGrid inputRows
-    in
-    navFn fixture.grid fixture.puzzle fixture.selection
-        |> Fixture.renderGrid fixture.puzzle fixture.grid
-        |> Expect.equal expectedRows
-
-
--- Apply a selectClue operation and compare the resulting selection against an expected grid.
-navigatesSelectClue :
-    List String
-    -> (Grid -> Puzzle -> ClueId -> Selection)
-    -> ClueId
-    -> List String
-    -> Expect.Expectation
-navigatesSelectClue inputRows selectFn cid expectedRows =
-    let
-        fixture =
-            Fixture.fromGrid inputRows
-    in
-    selectFn fixture.grid fixture.puzzle cid
-        |> Fixture.renderGrid fixture.puzzle fixture.grid
-        |> Expect.equal expectedRows
-
-
--- Simulate a cell click (given col, row) and compare the resulting selection.
-click :
-    List String
-    -> ( Int, Int )
-    -> List String
-    -> Expect.Expectation
-click inputRows clickPos expectedRows =
-    let
-        fixture =
-            Fixture.fromGrid inputRows
-
-        result =
-            Selection.selectCell clickPos (Just fixture.selection) fixture.puzzle
-    in
-    case result of
-        Nothing ->
-            Expect.fail "selectCell returned Nothing (clicked a black cell?)"
-
-        Just sel ->
-            Fixture.renderGrid fixture.puzzle fixture.grid sel
-                |> Expect.equal expectedRows
 
 
 suite : Test
@@ -172,7 +117,7 @@ guardianSuite =
         , test "selectClue always selects the first cell, ignoring blanks" <|
             \_ ->
                 -- Guardian ignores blanks; always goes to cell index 0
-                navigatesSelectClue
+                selectsClue
                     [ " A  B  _ "
                     , " D  *  E "
                     , " F  G  H "
@@ -279,7 +224,7 @@ nytSuite =
                     ]
         , test "selectClue with blanks selects the first blank, not the first cell" <|
             \_ ->
-                navigatesSelectClue
+                selectsClue
                     [ " A  B  _ "
                     , " D  *  E "
                     , " F  G  H "
@@ -292,7 +237,7 @@ nytSuite =
                     ]
         , test "selectClue on a fully filled clue selects its first cell" <|
             \_ ->
-                navigatesSelectClue
+                selectsClue
                     [ " A  B  C "
                     , " D  *  E "
                     , " F  G  H "
@@ -400,35 +345,12 @@ arrowSuite =
         ]
 
 
--- Simulate a first click (no prior selection) and compare the resulting selection.
-clickFresh :
-    List String
-    -> ( Int, Int )
-    -> List String
-    -> Expect.Expectation
-clickFresh inputRows clickPos expectedRows =
-    let
-        fixture =
-            Fixture.fromGrid inputRows
-
-        result =
-            Selection.selectCell clickPos Nothing fixture.puzzle
-    in
-    case result of
-        Nothing ->
-            Expect.fail "selectCell returned Nothing (clicked a black cell?)"
-
-        Just sel ->
-            Fixture.renderGrid fixture.puzzle fixture.grid sel
-                |> Expect.equal expectedRows
-
-
 clickSuite : Test
 clickSuite =
     describe "Cell clicks"
         [ test "clicking a new cell moves the selection there" <|
             \_ ->
-                click
+                clicks
                     [ "→A  B  C "
                     , " D  *  E "
                     , " F  G  H "
@@ -441,7 +363,7 @@ clickSuite =
         , test "clicking a cell that only belongs to a down clue selects it in down" <|
             \_ ->
                 -- D at (0,1) is DownOnly; freshSelection falls back from Across to Down
-                click
+                clicks
                     [ "→A  B  C "
                     , " D  *  E "
                     , " F  G  H "
@@ -453,7 +375,7 @@ clickSuite =
                     ]
         , test "clicking the selected cell again toggles the active direction" <|
             \_ ->
-                click
+                clicks
                     [ "→A  B  C "
                     , " D  *  E "
                     , " F  G  H "
@@ -465,19 +387,19 @@ clickSuite =
                     ]
         , test "clicking a black cell does not change the selection" <|
             \_ ->
-                let
-                    fixture =
-                        Fixture.fromGrid
-                            [ "→A  B  C "
-                            , " D  *  E "
-                            , " F  G  H "
-                            ]
-                in
-                Selection.selectCell ( 1, 1 ) (Just fixture.selection) fixture.puzzle
-                    |> Expect.equal (Just fixture.selection)
+                clicks
+                    [ "→A  B  C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
+                    ( 1, 1 )
+                    [ "→A  B  C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
         , test "first click with no prior selection creates a fresh selection" <|
             \_ ->
-                clickFresh
+                clicks
                     [ " A  B  C "
                     , " D  *  E "
                     , " F  G  H "
@@ -490,16 +412,16 @@ clickSuite =
         , test "clicking the selected cell again when it has only one direction does not toggle" <|
             \_ ->
                 -- D at (0,1) is DownOnly; there is no Across clue to toggle to
-                let
-                    fixture =
-                        Fixture.fromGrid
-                            [ " A  B  C "
-                            , "↓D  *  E "
-                            , " F  G  H "
-                            ]
-                in
-                Selection.selectCell ( 0, 1 ) (Just fixture.selection) fixture.puzzle
-                    |> Expect.equal (Just fixture.selection)
+                clicks
+                    [ " A  B  C "
+                    , "↓D  *  E "
+                    , " F  G  H "
+                    ]
+                    ( 0, 1 )
+                    [ " A  B  C "
+                    , "↓D  *  E "
+                    , " F  G  H "
+                    ]
         ]
 
 
@@ -508,77 +430,81 @@ groupSuite =
     describe "Grouped (linked) clues"
         [ test "Guardian: typing at the last cell of the first linked clue continues into the second" <|
             \_ ->
-                let
-                    fixture =
-                        Fixture.fromGrid
-                            [ " A  B →C "
-                            , " D  *  E "
-                            , " F  G  H "
-                            ]
-                            |> Fixture.withGroup "ABC,FGH"
-                in
-                Guardian.strategy.afterLetter False fixture.grid fixture.puzzle fixture.selection
-                    |> Fixture.renderGrid fixture.puzzle fixture.grid
-                    |> Expect.equal
-                        [ " A  B  C "
-                        , " D  *  E "
-                        , "→F  G  H "
-                        ]
-        , test "Guardian: typing at the last cell of the last linked clue wraps to the first" <|
-            \_ ->
-                let
-                    fixture =
-                        Fixture.fromGrid
-                            [ " A  B  C "
-                            , " D  *  E "
-                            , " F  G →H "
-                            ]
-                            |> Fixture.withGroup "ABC,FGH"
-                in
-                Guardian.strategy.afterLetter False fixture.grid fixture.puzzle fixture.selection
-                    |> Fixture.renderGrid fixture.puzzle fixture.grid
-                    |> Expect.equal
-                        [ "→A  B  C "
-                        , " D  *  E "
-                        , " F  G  H "
-                        ]
-        , test "Guardian: backspace at the first cell of the second linked clue goes to the last of the first" <|
-            \_ ->
-                let
-                    fixture =
-                        Fixture.fromGrid
-                            [ " A  B  C "
-                            , " D  *  E "
-                            , "→F  G  H "
-                            ]
-                            |> Fixture.withGroup "ABC,FGH"
-                in
-                Selection.prevCell fixture.puzzle fixture.selection
-                    |> Fixture.renderGrid fixture.puzzle fixture.grid
-                    |> Expect.equal
+                withSelection
+                    (Fixture.fromGrid
                         [ " A  B →C "
                         , " D  *  E "
                         , " F  G  H "
                         ]
+                        |> Fixture.withGroup "ABC,FGH"
+                    )
+                    (\fixture sel ->
+                        Guardian.strategy.afterLetter False fixture.grid fixture.puzzle sel
+                            |> Fixture.render fixture
+                            |> Expect.equal
+                                [ " A  B  C "
+                                , " D  *  E "
+                                , "→F  G  H "
+                                ]
+                    )
+        , test "Guardian: typing at the last cell of the last linked clue wraps to the first" <|
+            \_ ->
+                withSelection
+                    (Fixture.fromGrid
+                        [ " A  B  C "
+                        , " D  *  E "
+                        , " F  G →H "
+                        ]
+                        |> Fixture.withGroup "ABC,FGH"
+                    )
+                    (\fixture sel ->
+                        Guardian.strategy.afterLetter False fixture.grid fixture.puzzle sel
+                            |> Fixture.render fixture
+                            |> Expect.equal
+                                [ "→A  B  C "
+                                , " D  *  E "
+                                , " F  G  H "
+                                ]
+                    )
+        , test "Guardian: backspace at the first cell of the second linked clue goes to the last of the first" <|
+            \_ ->
+                withSelection
+                    (Fixture.fromGrid
+                        [ " A  B  C "
+                        , " D  *  E "
+                        , "→F  G  H "
+                        ]
+                        |> Fixture.withGroup "ABC,FGH"
+                    )
+                    (\fixture sel ->
+                        Selection.prevCell fixture.puzzle sel
+                            |> Fixture.render fixture
+                            |> Expect.equal
+                                [ " A  B →C "
+                                , " D  *  E "
+                                , " F  G  H "
+                                ]
+                    )
         , test "NYT: typing in a blank searches for the next blank across the whole linked group" <|
             \_ ->
                 -- 1-across is fully filled; 3-across has a blank at F(0,2)
                 -- Without grouping, afterLetter True would jump to a different clue.
                 -- With grouping, it finds F as the next blank within the group.
-                let
-                    fixture =
-                        Fixture.fromGrid
-                            [ " A  B →C "
-                            , " D  *  E "
-                            , " _  G  H "
-                            ]
-                            |> Fixture.withGroup "ABC,_GH"
-                in
-                NYT.strategy.afterLetter True fixture.grid fixture.puzzle fixture.selection
-                    |> Fixture.renderGrid fixture.puzzle fixture.grid
-                    |> Expect.equal
-                        [ " A  B  C "
+                withSelection
+                    (Fixture.fromGrid
+                        [ " A  B →C "
                         , " D  *  E "
-                        , "→_  G  H "
+                        , " _  G  H "
                         ]
+                        |> Fixture.withGroup "ABC,_GH"
+                    )
+                    (\fixture sel ->
+                        NYT.strategy.afterLetter True fixture.grid fixture.puzzle sel
+                            |> Fixture.render fixture
+                            |> Expect.equal
+                                [ " A  B  C "
+                                , " D  *  E "
+                                , "→_  G  H "
+                                ]
+                    )
         ]

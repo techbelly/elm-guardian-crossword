@@ -1,4 +1,4 @@
-module Fixture exposing (Fixture, fromGrid, renderGrid, withGroup)
+module Fixture exposing (Fixture, fromGrid, render, renderGrid, withGroup)
 
 import Crossword.Decode exposing (buildCellInfos)
 import Crossword.Grid as Grid
@@ -20,7 +20,7 @@ import Dict exposing (Dict)
 type alias Fixture =
     { puzzle : Puzzle
     , grid : Grid
-    , selection : Selection
+    , selection : Maybe Selection
     }
 
 
@@ -110,11 +110,7 @@ fromGrid rows =
                     )
                 |> List.head
 
-        fallbackSelection : Selection
-        fallbackSelection =
-            { clueId = { number = 1, direction = Across }, cellIndex = 0 }
-
-        selection : Selection
+        selection : Maybe Selection
         selection =
             selectedInfo
                 |> Maybe.andThen
@@ -144,7 +140,6 @@ fromGrid rows =
                                             )
                                 )
                     )
-                |> Maybe.withDefault fallbackSelection
     in
     { puzzle = puzzle, grid = grid, selection = selection }
 
@@ -189,6 +184,11 @@ renderGrid puzzle grid selection =
                     |> List.map (\col -> renderCell col row)
                     |> String.concat
             )
+
+
+render : Fixture -> Selection -> List String
+render fixture sel =
+    renderGrid fixture.puzzle fixture.grid sel
 
 
 -- Internal: parse a row string into a dict of (col, row) -> Maybe WhiteCell

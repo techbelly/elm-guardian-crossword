@@ -1,57 +1,9 @@
 module KeyboardTest exposing (suite)
 
-import Crossword.Keyboard as Keyboard
 import Crossword.Navigation.Guardian as Guardian
 import Crossword.Navigation.NYT as NYT
-import Crossword.Types exposing (ActiveModel, NavigationStrategy, NavigationStyle(..))
-import Expect
-import Fixture
 import Test exposing (Test, describe, test)
-
-
-toModel : Fixture.Fixture -> ActiveModel
-toModel fixture =
-    { puzzle = fixture.puzzle
-    , grid = fixture.grid
-    , selection = Just fixture.selection
-    , navigationStyle = NYT
-    }
-
-
-typesLetter : NavigationStrategy -> List String -> Char -> List String -> Expect.Expectation
-typesLetter strategy inputRows ch expectedRows =
-    let
-        fixture =
-            Fixture.fromGrid inputRows
-
-        ( newModel, _ ) =
-            Keyboard.handleLetter strategy ch fixture.selection (toModel fixture)
-    in
-    case newModel.selection of
-        Nothing ->
-            Expect.fail "Expected a selection after typing"
-
-        Just sel ->
-            Fixture.renderGrid newModel.puzzle newModel.grid sel
-                |> Expect.equal expectedRows
-
-
-pressesBackspace : List String -> List String -> Expect.Expectation
-pressesBackspace inputRows expectedRows =
-    let
-        fixture =
-            Fixture.fromGrid inputRows
-
-        ( newModel, _ ) =
-            Keyboard.handleBackspace fixture.puzzle fixture.selection (toModel fixture)
-    in
-    case newModel.selection of
-        Nothing ->
-            Expect.fail "Expected a selection after backspace"
-
-        Just sel ->
-            Fixture.renderGrid newModel.puzzle newModel.grid sel
-                |> Expect.equal expectedRows
+import TestHelpers exposing (pressesBackspace, typesLetter)
 
 
 suite : Test
