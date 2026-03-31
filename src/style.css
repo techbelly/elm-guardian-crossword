@@ -107,6 +107,7 @@ body {
   min-width: 0;
   max-height: 500px;
   overflow-y: auto;
+  scroll-padding-top: 2rem;
 }
 
 .crossword__clues-header {
