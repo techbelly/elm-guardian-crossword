@@ -11,7 +11,7 @@ import Crossword.Types
         , Msg(..)
         , lookupClue
         )
-import Html exposing (Html, div, h3, li, ol, span, text)
+import Html exposing (Html, b, div, h3, i, li, ol, span, text)
 import Html.Attributes as Attr
 import Html.Events
 
@@ -42,7 +42,7 @@ viewStickyBar model =
                         [ span [ Attr.class "crossword__sticky-clue-number" ]
                             [ text (clue.humanNumber ++ " " ++ directionLabel clue.id.direction) ]
                         , span [ Attr.class "crossword__sticky-clue-text" ]
-                            [ text (" " ++ clue.text) ]
+                            (text " " :: viewClueHtml clue.text)
                         ]
 
 
@@ -98,10 +98,59 @@ viewClueItem clue grid activeGroup =
         , Html.Events.onClick (ClueClicked clue.id)
         ]
         [ span [ Attr.class "crossword__clue-number" ] [ text clue.humanNumber ]
-        , span [ Attr.class "crossword__clue-text" ] [ text (" " ++ clue.text) ]
+        , span [ Attr.class "crossword__clue-text" ] (text " " :: viewClueHtml clue.text)
         ]
 
 
 clueElementId : ClueId -> String
 clueElementId cid =
     "clue-" ++ String.fromInt cid.number ++ "-" ++ directionLabel cid.direction
+
+
+{-| Render a clue text string that may contain <i>, <b>, or <span> tags.
+-}
+viewClueHtml : String -> List (Html msg)
+viewClueHtml raw =
+    raw
+        |> String.split "<"
+        |> List.indexedMap
+            (\idx seg ->
+                if idx == 0 then
+                    if String.isEmpty seg then [] else [ text seg ]
+
+                else if String.startsWith "/" seg then
+                    -- Closing tag fragment: "/tagname>trailing"
+                    case String.split ">" seg of
+                        _ :: trailingParts ->
+                            let
+                                trailing =
+                                    String.join ">" trailingParts
+                            in
+                            if String.isEmpty trailing then [] else [ text trailing ]
+
+                        _ ->
+                            []
+
+                else
+                    -- Opening tag fragment: "tagname>content"
+                    case String.split ">" seg of
+                        tagName :: contentParts ->
+                            [ inlineTag tagName (String.join ">" contentParts) ]
+
+                        _ ->
+                            [ text ("<" ++ seg) ]
+            )
+        |> List.concat
+
+
+inlineTag : String -> String -> Html msg
+inlineTag tagName content =
+    case tagName of
+        "i" ->
+            i [] [ text content ]
+
+        "b" ->
+            b [] [ text content ]
+
+        _ ->
+            span [] [ text content ]
