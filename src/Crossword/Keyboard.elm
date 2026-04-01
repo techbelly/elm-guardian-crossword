@@ -1,4 +1,4 @@
-module Crossword.Keyboard exposing (handleBackspace, handleKey, handleLetter, shouldPreventDefault)
+module Crossword.Keyboard exposing (handleArrow, handleBackspace, handleKey, handleLetter, handleShiftTab, handleTab, shouldPreventDefault)
 
 import Crossword.Grid as Grid
 import Crossword.Selection as Selection
@@ -26,7 +26,7 @@ handleKey strategy key shiftKey model =
         Nothing ->
             ( model, False )
 
-        Just sel ->
+        Just _ ->
             case categorizeKey key shiftKey of
                 Letter ch ->
                     handleLetter strategy ch model
@@ -35,19 +35,13 @@ handleKey strategy key shiftKey model =
                     handleBackspace model
 
                 Arrow dir ->
-                    ( { model | selection = Just (Selection.arrowMove dir model.puzzle sel) }
-                    , False
-                    )
+                    handleArrow dir model
 
                 Tab ->
-                    ( { model | selection = Just (strategy.nextClue model.grid model.puzzle sel) }
-                    , False
-                    )
+                    handleTab strategy model
 
                 ShiftTab ->
-                    ( { model | selection = Just (strategy.prevClue model.grid model.puzzle sel) }
-                    , False
-                    )
+                    handleShiftTab strategy model
 
                 Unhandled ->
                     ( model, False )
@@ -99,13 +93,56 @@ handleBackspace model =
                             )
 
                         Empty ->
-                            if sel.cellIndex == 0 then
+                            let
+                                isFirst =
+                                    Selection.groupSelections sel.clueId model.puzzle
+                                        |> List.head
+                                        |> Maybe.map (\first -> first == sel)
+                                        |> Maybe.withDefault True
+                            in
+                            if isFirst then
                                 ( model, False )
 
                             else
                                 ( { model | selection = Just (Selection.prevCell model.puzzle sel) }
                                 , False
                                 )
+
+
+handleArrow : Arrow -> ActiveModel -> ( ActiveModel, Bool )
+handleArrow dir model =
+    case model.selection of
+        Nothing ->
+            ( model, False )
+
+        Just sel ->
+            ( { model | selection = Just (Selection.arrowMove dir model.puzzle sel) }
+            , False
+            )
+
+
+handleTab : NavigationStrategy -> ActiveModel -> ( ActiveModel, Bool )
+handleTab strategy model =
+    case model.selection of
+        Nothing ->
+            ( model, False )
+
+        Just sel ->
+            ( { model | selection = Just (strategy.nextClue model.grid model.puzzle sel) }
+            , False
+            )
+
+
+handleShiftTab : NavigationStrategy -> ActiveModel -> ( ActiveModel, Bool )
+handleShiftTab strategy model =
+    case model.selection of
+        Nothing ->
+            ( model, False )
+
+        Just sel ->
+            ( { model | selection = Just (strategy.prevClue model.grid model.puzzle sel) }
+            , False
+            )
 
 
 shouldPreventDefault : String -> Bool

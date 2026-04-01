@@ -3,7 +3,7 @@ module KeyboardTest exposing (suite)
 import Crossword.Navigation.Guardian as Guardian
 import Crossword.Navigation.NYT as NYT
 import Test exposing (Test, describe, test)
-import TestHelpers exposing (pressesBackspace, typesLetter)
+import TestHelpers exposing (uitest, UIAction(..))
 
 
 suite : Test
@@ -20,36 +20,36 @@ nytTypingSuite =
     describe "NYT typing"
         [ test "fills an empty cell and advances to the next blank" <|
             \_ ->
-                typesLetter NYT.strategy
+                uitest NYT.strategy
                     [ "→_  _  _ "
                     , " D  *  E "
                     , " F  G  H "
                     ]
-                    'A'
+                    (Type 'A')
                     [ " A →_  _ "
                     , " D  *  E "
                     , " F  G  H "
                     ]
         , test "skips over a filled cell to reach the next blank" <|
             \_ ->
-                typesLetter NYT.strategy
+                uitest NYT.strategy
                     [ "→_  B  _ "
                     , " D  *  E "
                     , " F  G  H "
                     ]
-                    'A'
+                    (Type 'A')
                     [ " A  B →_ "
                     , " D  *  E "
                     , " F  G  H "
                     ]
         , test "overwrites a filled cell and advances to the next cell" <|
             \_ ->
-                typesLetter NYT.strategy
+                uitest NYT.strategy
                     [ " A →B  C "
                     , " D  *  E "
                     , " F  G  H "
                     ]
-                    'Z'
+                    (Type 'Z')
                     [ " A  Z →C "
                     , " D  *  E "
                     , " F  G  H "
@@ -62,36 +62,36 @@ guardianTypingSuite =
     describe "Guardian typing"
         [ test "fills an empty cell and advances to the next cell" <|
             \_ ->
-                typesLetter Guardian.strategy
+                uitest Guardian.strategy
                     [ "→_  _  _ "
                     , " D  *  E "
                     , " F  G  H "
                     ]
-                    'A'
+                    (Type 'A')
                     [ " A →_  _ "
                     , " D  *  E "
                     , " F  G  H "
                     ]
         , test "advances one cell even when the next cell is filled" <|
             \_ ->
-                typesLetter Guardian.strategy
+                uitest Guardian.strategy
                     [ "→_  B  _ "
                     , " D  *  E "
                     , " F  G  H "
                     ]
-                    'A'
+                    (Type 'A')
                     [ " A →B  _ "
                     , " D  *  E "
                     , " F  G  H "
                     ]
         , test "overwrites a filled cell and advances to the next cell" <|
             \_ ->
-                typesLetter Guardian.strategy
+                uitest Guardian.strategy
                     [ " A →B  C "
                     , " D  *  E "
                     , " F  G  H "
                     ]
-                    'Z'
+                    (Type 'Z')
                     [ " A  Z →C "
                     , " D  *  E "
                     , " F  G  H "
@@ -104,44 +104,48 @@ backspaceSuite =
     describe "Backspace"
         [ test "clears a filled cell and stays in place" <|
             \_ ->
-                pressesBackspace
+                uitest Guardian.strategy
                     [ "→A  B  C "
                     , " D  *  E "
                     , " F  G  H "
                     ]
+                    Backspace
                     [ "→_  B  C "
                     , " D  *  E "
                     , " F  G  H "
                     ]
         , test "clears a filled cell mid-clue and stays in place" <|
             \_ ->
-                pressesBackspace
+                uitest Guardian.strategy
                     [ " A →B  C "
                     , " D  *  E "
                     , " F  G  H "
                     ]
+                    Backspace
                     [ " A →_  C "
                     , " D  *  E "
                     , " F  G  H "
                     ]
         , test "moves to the previous cell when current is empty" <|
             \_ ->
-                pressesBackspace
+                uitest Guardian.strategy
                     [ " A →_  C "
                     , " D  *  E "
                     , " F  G  H "
                     ]
+                    Backspace
                     [ "→A  _  C "
                     , " D  *  E "
                     , " F  G  H "
                     ]
         , test "stays put when at the first cell and it is empty" <|
             \_ ->
-                pressesBackspace
+                uitest Guardian.strategy
                     [ "→_  B  C "
                     , " D  *  E "
                     , " F  G  H "
                     ]
+                    Backspace
                     [ "→_  B  C "
                     , " D  *  E "
                     , " F  G  H "

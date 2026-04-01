@@ -1,11 +1,12 @@
-module Fixture exposing (Fixture, fromGrid, render, renderGrid, withGroup)
+module Fixture exposing (Fixture, fromGrid, fromModel, renderFixture, toModel, withGroup)
 
 import Crossword.Decode exposing (buildCellInfos)
 import Crossword.Grid as Grid
 import Crossword.Selection as Selection
 import Crossword.Types as Types
     exposing
-        ( CellValue(..)
+        ( ActiveModel
+        , CellValue(..)
         , Clue
         , ClueId
         , Direction(..)
@@ -30,6 +31,20 @@ type alias WhiteCell =
     }
 
 
+fromModel : ActiveModel -> Fixture
+fromModel model =
+    { puzzle = model.puzzle, grid = model.grid, selection = model.selection }
+
+
+toModel : Fixture -> ActiveModel
+toModel fixture =
+    { puzzle = fixture.puzzle
+    , grid = fixture.grid
+    , selection = fixture.selection
+    , navigationStyle = Types.NYT
+    }
+
+
 fromGrid : List String -> Fixture
 fromGrid rows =
     let
@@ -43,12 +58,9 @@ fromGrid rows =
             List.length rows
 
         numCols =
-            rawCells
-                |> Dict.keys
-                |> List.map Tuple.first
-                |> List.maximum
+            List.head rows
+                |> Maybe.map (\s -> String.length s // 3)
                 |> Maybe.withDefault 0
-                |> (+) 1
 
         isWhite : Position -> Bool
         isWhite pos =
@@ -59,30 +71,14 @@ fromGrid rows =
                 _ ->
                     False
 
+        grid =
+            buildGrid rawCells
+
         clues =
             deriveClues isWhite numCols numRows
 
         cellInfos =
             buildCellInfos clues
-
-        grid : Grid
-        grid =
-            rawCells
-                |> Dict.toList
-                |> List.filterMap
-                    (\( pos, maybeCell ) ->
-                        maybeCell
-                            |> Maybe.map
-                                (\{ value } ->
-                                    case value of
-                                        Just ch ->
-                                            ( pos, Filled ch )
-
-                                        Nothing ->
-                                            ( pos, Empty )
-                                )
-                    )
-                |> Dict.fromList
 
         puzzle : Puzzle
         puzzle =
@@ -95,7 +91,33 @@ fromGrid rows =
             , clues = clues
             , cellInfos = cellInfos
             }
+    in
+    { puzzle = puzzle, grid = grid, selection = resolveSelection rawCells puzzle }
 
+
+buildGrid : Dict Position (Maybe WhiteCell) -> Grid
+buildGrid rawCells =
+    rawCells
+        |> Dict.toList
+        |> List.filterMap
+            (\( pos, maybeCell ) ->
+                maybeCell
+                    |> Maybe.map
+                        (\{ value } ->
+                            case value of
+                                Just ch ->
+                                    ( pos, Filled ch )
+
+                                Nothing ->
+                                    ( pos, Empty )
+                        )
+            )
+        |> Dict.fromList
+
+
+resolveSelection : Dict Position (Maybe WhiteCell) -> Puzzle -> Maybe Selection
+resolveSelection rawCells puzzle =
+    let
         selectedInfo : Maybe ( Position, Direction )
         selectedInfo =
             rawCells
@@ -110,56 +132,53 @@ fromGrid rows =
                     )
                 |> List.head
 
-        selection : Maybe Selection
-        selection =
-            selectedInfo
-                |> Maybe.andThen
-                    (\( pos, dir ) ->
-                        let
-                            maybeCid =
-                                Dict.get pos cellInfos
-                                    |> Maybe.andThen
-                                        (\cellInfo ->
-                                            case Types.clueIdForDirection dir cellInfo of
-                                                Just cid ->
-                                                    Just cid
+        preferDirection dir cellInfo =
+            case Types.clueIdForDirection dir cellInfo of
+                Just cid ->
+                    Just cid
 
-                                                Nothing ->
-                                                    Types.clueIdForDirection (Types.flipDirection dir) cellInfo
-                                        )
-                        in
-                        maybeCid
-                            |> Maybe.andThen
-                                (\cid ->
-                                    Types.lookupClue cid puzzle
-                                        |> Maybe.map
-                                            (\clue ->
-                                                { clueId = cid
-                                                , cellIndex = Grid.cellIndexFromPosition pos clue
-                                                }
-                                            )
-                                )
-                    )
+                Nothing ->
+                    Types.clueIdForDirection (Types.flipDirection dir) cellInfo
     in
-    { puzzle = puzzle, grid = grid, selection = selection }
+    selectedInfo
+        |> Maybe.andThen
+            (\( pos, dir ) ->
+                Dict.get pos puzzle.cellInfos
+                    |> Maybe.andThen (preferDirection dir)
+                    |> Maybe.andThen
+                        (\cid ->
+                            Types.lookupClue cid puzzle
+                                |> Maybe.map
+                                    (\clue ->
+                                        { clueId = cid
+                                        , cellIndex = Grid.cellIndexFromPosition pos clue
+                                        }
+                                    )
+                        )
+            )
 
 
-renderGrid : Puzzle -> Grid -> Selection -> List String
-renderGrid puzzle grid selection =
+renderFixture : Fixture -> List String
+renderFixture fixture =
     let
         selectedPos =
-            Selection.selectionPosition selection puzzle
+            fixture.selection |> Maybe.andThen (\s -> Selection.selectionPosition s fixture.puzzle)
+
+        selectedDir =
+            fixture.selection
+                |> Maybe.map (\s -> s.clueId.direction)
+                |> Maybe.withDefault Across
 
         renderCell : Int -> Int -> String
         renderCell col row =
-            case Dict.get ( col, row ) puzzle.cellInfos of
+            case Dict.get ( col, row ) fixture.puzzle.cellInfos of
                 Nothing ->
                     " * "
 
                 Just _ ->
                     let
                         cellStr =
-                            case Grid.get ( col, row ) grid of
+                            case Grid.get ( col, row ) fixture.grid of
                                 Empty ->
                                     "_"
 
@@ -167,7 +186,7 @@ renderGrid puzzle grid selection =
                                     String.fromChar ch
                     in
                     if selectedPos == Just ( col, row ) then
-                        case selection.clueId.direction of
+                        case selectedDir of
                             Across ->
                                 "→" ++ cellStr ++ " "
 
@@ -177,18 +196,13 @@ renderGrid puzzle grid selection =
                     else
                         " " ++ cellStr ++ " "
     in
-    List.range 0 (puzzle.dimensions.rows - 1)
+    List.range 0 (fixture.puzzle.dimensions.rows - 1)
         |> List.map
             (\row ->
-                List.range 0 (puzzle.dimensions.cols - 1)
+                List.range 0 (fixture.puzzle.dimensions.cols - 1)
                     |> List.map (\col -> renderCell col row)
                     |> String.concat
             )
-
-
-render : Fixture -> Selection -> List String
-render fixture sel =
-    renderGrid fixture.puzzle fixture.grid sel
 
 
 -- Internal: parse a row string into a dict of (col, row) -> Maybe WhiteCell
@@ -301,31 +315,21 @@ deriveClues isWhite numCols numRows =
         numberedList =
             Dict.toList numberedPositions
 
-        acrossClues =
+        cluesForDirection : Direction -> (Position -> Bool) -> ( Int, Int ) -> List Clue
+        cluesForDirection dir starts delta =
             numberedList
                 |> List.filterMap
                     (\( pos, num ) ->
-                        if startsAcross pos then
-                            Just (makeClue num Across pos (countRun ( 1, 0 ) pos))
+                        if starts pos then
+                            Just (makeClue num dir pos (countRun delta pos))
 
                         else
                             Nothing
                     )
-                |> List.sortBy (\c -> c.id.number)
-
-        downClues =
-            numberedList
-                |> List.filterMap
-                    (\( pos, num ) ->
-                        if startsDown pos then
-                            Just (makeClue num Down pos (countRun ( 0, 1 ) pos))
-
-                        else
-                            Nothing
-                    )
-                |> List.sortBy (\c -> c.id.number)
+                |> List.sortBy (.id >> .number)
     in
-    acrossClues ++ downClues
+    cluesForDirection Across startsAcross ( 1, 0 )
+        ++ cluesForDirection Down startsDown ( 0, 1 )
 
 
 {- Link a set of clues into a single group so that nextCell/prevCell traverse
