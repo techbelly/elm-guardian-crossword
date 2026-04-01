@@ -207,4 +207,68 @@ arrowSuite =
                     , " D  *  E "
                     , " F →G  H "
                     ]
+        , test "ArrowDown wraps from the last white cell in a column to the first" <|
+            \_ ->
+                -- Col 0: [(0,0),(0,1),(0,2)]; ArrowDown from F wraps to A
+                uitest Guardian.strategy
+                    [ " A  B  C "
+                    , " D  *  E "
+                    , "↓F  G  H "
+                    ]
+                    (Arrow ArrowDown)
+                    [ "↓A  B  C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
+        , test "ArrowLeft skips over black cells" <|
+            \_ ->
+                -- Row 1 white cells are [(0,1), (2,1)]; ArrowLeft from E jumps to D
+                uitest Guardian.strategy
+                    [ " A  B  C "
+                    , " D  * ↓E "
+                    , " F  G  H "
+                    ]
+                    (Arrow ArrowLeft)
+                    [ " A  B  C "
+                    , "↓D  *  E "
+                    , " F  G  H "
+                    ]
+        , test "ArrowLeft wraps from the first white cell in a row to the last" <|
+            \_ ->
+                uitest Guardian.strategy
+                    [ "→A  B  C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
+                    (Arrow ArrowLeft)
+                    [ " A  B →C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
+        , test "ArrowUp skips over black cells in a column" <|
+            \_ ->
+                -- Col 1: [(1,0),(1,2)]; ArrowUp from G skips black at (1,1) and lands on B
+                uitest Guardian.strategy
+                    [ " A  B  C "
+                    , " D  *  E "
+                    , " F →G  H "
+                    ]
+                    (Arrow ArrowUp)
+                    [ " A →B  C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
+        , test "ArrowUp wraps from the first white cell in a column to the last" <|
+            \_ ->
+                -- Col 0: [(0,0),(0,1),(0,2)]; ArrowUp from A wraps to F
+                uitest Guardian.strategy
+                    [ "↓A  B  C "
+                    , " D  *  E "
+                    , " F  G  H "
+                    ]
+                    (Arrow ArrowUp)
+                    [ " A  B  C "
+                    , " D  *  E "
+                    , "↓F  G  H "
+                    ]
         ]
