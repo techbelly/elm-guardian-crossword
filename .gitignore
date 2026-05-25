@@ -2,3 +2,7 @@ node_modules/
 elm-stuff/
 dist/
 .coverage/
+
+# UKACD source cache — regenerable via `npm run build-dict`. The processed
+# public/dict.json is committed.
+scripts/ukacd.txt

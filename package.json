@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build-dict": "node scripts/build-dict.mjs"
   },
   "devDependencies": {
     "elm-coverage": "^0.4.1",
