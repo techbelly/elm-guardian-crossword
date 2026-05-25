@@ -1,10 +1,14 @@
 module Crossword.Types exposing
     ( ActiveModel
+    , AnagramModalState(..)
+    , AnagramModalData
+    , AnagramSearchOutcome(..)
     , CellClues(..)
     , ClueStart(..)
     , CellInfo
     , CellSeparator
     , CellValue(..)
+    , DictionaryState(..)
     , Direction(..)
     , Clue
     , ClueId
@@ -24,7 +28,9 @@ module Crossword.Types exposing
     , lookupClue
     )
 
+import Anagram.Dict exposing (Dictionary)
 import Dict exposing (Dict)
+import Json.Decode
 
 
 type NavigationStyle
@@ -219,7 +225,44 @@ type alias ActiveModel =
     , grid : Grid
     , selection : Maybe Selection
     , navigationStyle : NavigationStyle
+    , clueSelection : String
+    , dictionary : DictionaryState
+    , anagramModal : AnagramModalState
     }
+
+
+
+-- Dictionary load lifecycle. Loaded once, on first modal open, then cached.
+
+
+type DictionaryState
+    = DictNotLoaded
+    | DictLoading
+    | DictReady Dictionary
+    | DictFailed String
+
+
+
+-- Anagram modal state. Closed by default; opening tracks input and last search.
+
+
+type AnagramModalState
+    = AnagramClosed
+    | AnagramOpen AnagramModalData
+
+
+type alias AnagramModalData =
+    { input : String
+    , lastSearch : Maybe AnagramSearchOutcome
+    }
+
+
+type AnagramSearchOutcome
+    = AnagramSearching
+    | AnagramTooShort
+    | AnagramTooLong
+    | AnagramNoResults
+    | AnagramResults (List (List String))
 
 
 
@@ -231,3 +274,12 @@ type Msg
     | KeyPressed String Bool
     | ClueClicked ClueId
     | SetNavigation NavigationStyle
+    | ClueSelectionChanged String
+    | OpenAnagramModal
+    | CloseAnagramModal
+    | AnagramInputChanged String
+    | AnagramSubmit
+    | AnagramRunSearch
+    | DictionaryLoaded Json.Decode.Value
+    | DictionaryLoadFailed String
+    | NoopClick

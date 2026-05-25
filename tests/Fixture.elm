@@ -42,6 +42,9 @@ toModel fixture =
     , grid = fixture.grid
     , selection = fixture.selection
     , navigationStyle = Types.NYT
+    , clueSelection = ""
+    , dictionary = Types.DictNotLoaded
+    , anagramModal = Types.AnagramClosed
     }
 
 

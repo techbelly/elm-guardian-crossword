@@ -30,3 +30,26 @@ Then open http://localhost:5173/ in your browser.
 ```sh
 npx vite build
 ```
+
+## Anagram finder
+
+There's an anagram solver behind the **ARTS↔TSAR** button at the top right.
+It uses a preprocessed copy of the [UK Advanced Cryptics
+Dictionary](https://github.com/rdeits/cryptics/raw/refs/heads/master/raw_data/UKACD.txt)
+(UKACD) by J Ross Beresford. The processed dictionary lives at
+`public/dict.json` and is committed to the repo; to regenerate it from
+source run:
+
+```sh
+npm run build-dict
+```
+
+The first run downloads UKACD into `scripts/ukacd.txt` (gitignored) and
+preprocesses it; subsequent runs reuse the cached source.
+
+## Licenses
+
+This project is released under the [MIT License](LICENSE).
+
+UKACD is distributed under a 3-clause BSD-style license — see
+[LICENSE-UKACD](LICENSE-UKACD).

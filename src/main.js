@@ -57,4 +57,54 @@ function initElm(puzzleJson) {
       if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     });
   });
+
+  let dictPromise = null;
+  app.ports.loadDictionary.subscribe(function () {
+    if (!dictPromise) {
+      dictPromise = fetch("/dict.json")
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        });
+    }
+    dictPromise
+      .then(function (data) { app.ports.dictionaryLoaded.send(data); })
+      .catch(function (err) {
+        dictPromise = null;
+        app.ports.dictionaryLoadFailed.send(err.message || String(err));
+      });
+  });
+
+  // Track text selection within clue elements and push to Elm. The selection
+  // is reported as empty when nothing is selected, or when the selection moves
+  // outside a clue.
+  document.addEventListener("selectionchange", function () {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      app.ports.clueSelectionChanged.send("");
+      return;
+    }
+    const anchor = sel.anchorNode;
+    const focus = sel.focusNode;
+    if (!anchor || !focus) {
+      app.ports.clueSelectionChanged.send("");
+      return;
+    }
+    const anchorClue = nearestClue(anchor);
+    const focusClue = nearestClue(focus);
+    if (anchorClue && anchorClue === focusClue) {
+      app.ports.clueSelectionChanged.send(sel.toString());
+    } else {
+      app.ports.clueSelectionChanged.send("");
+    }
+  });
+}
+
+function nearestClue(node) {
+  let el = node.nodeType === 1 ? node : node.parentElement;
+  while (el) {
+    if (el.classList && el.classList.contains("crossword__clue")) return el;
+    el = el.parentElement;
+  }
+  return null;
 }

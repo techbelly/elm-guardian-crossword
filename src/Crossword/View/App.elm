@@ -1,9 +1,11 @@
 module Crossword.View.App exposing (view)
 
+import Anagram.Modal as AnagramModal
 import Crossword.Keyboard as Keyboard
 import Crossword.Types
     exposing
         ( ActiveModel
+        , AnagramModalState(..)
         , Model(..)
         , Msg(..)
         , NavigationStyle(..)
@@ -11,7 +13,7 @@ import Crossword.Types
 import Crossword.View.Clues as ViewClues
 import Crossword.View.Grid as ViewGrid
 import Crossword.View.Title as ViewTitle
-import Html exposing (Html, div, h1, input, label, text)
+import Html exposing (Html, button, div, h1, input, label, text)
 import Html.Attributes as Attr
 import Html.Events
 import Json.Decode
@@ -37,28 +39,62 @@ errorScreen err =
 
 crosswordDisplay : ActiveModel -> Html Msg
 crosswordDisplay model =
-    div
-        [ Attr.class "crossword"
-        , Attr.tabindex 0
-        , Html.Events.preventDefaultOn "keydown"
-            (Json.Decode.map2
-                (\key shift ->
-                    ( KeyPressed key shift
-                    , Keyboard.shouldPreventDefault key
+    let
+        modalOpen =
+            case model.anagramModal of
+                AnagramOpen _ ->
+                    True
+
+                AnagramClosed ->
+                    False
+
+        keyHandlerAttrs =
+            if modalOpen then
+                []
+
+            else
+                [ Html.Events.preventDefaultOn "keydown"
+                    (Json.Decode.map2
+                        (\key shift ->
+                            ( KeyPressed key shift
+                            , Keyboard.shouldPreventDefault key
+                            )
+                        )
+                        (Json.Decode.field "key" Json.Decode.string)
+                        (Json.Decode.field "shiftKey" Json.Decode.bool)
                     )
-                )
-                (Json.Decode.field "key" Json.Decode.string)
-                (Json.Decode.field "shiftKey" Json.Decode.bool)
-            )
-        ]
-        [ ViewTitle.viewTitle model.puzzle
+                ]
+    in
+    div
+        ([ Attr.class "crossword"
+         , Attr.tabindex 0
+         ]
+            ++ keyHandlerAttrs
+        )
+        [ div [ Attr.class "crossword__top" ]
+            [ ViewTitle.viewTitle model.puzzle
+            , viewAnagramButton
+            ]
         , ViewClues.viewStickyBar model
         , div [ Attr.class "crossword__content" ]
             [ ViewGrid.viewGrid model
             , ViewClues.viewCluePanel model
             ]
         , viewNavigationToggle model.navigationStyle
+        , AnagramModal.view model.dictionary model.anagramModal
         ]
+
+
+viewAnagramButton : Html Msg
+viewAnagramButton =
+    button
+        [ Attr.class "crossword__anagram-button"
+        , Attr.type_ "button"
+        , Attr.attribute "aria-label" "Open anagram finder"
+        , Attr.title "Anagram finder"
+        , Html.Events.onClick OpenAnagramModal
+        ]
+        [ text "ARTS↔TSAR" ]
 
 
 viewNavigationToggle : NavigationStyle -> Html Msg

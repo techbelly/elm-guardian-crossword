@@ -56,10 +56,152 @@ body {
   outline: none;
 }
 
+.crossword__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
 .crossword__title {
   font-size: 20px;
   font-weight: 700;
-  margin-bottom: 8px;
+}
+
+.crossword__anagram-button {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 6px 12px;
+  background: #0a0a2e;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.crossword__anagram-button:hover {
+  background: #1a1a4e;
+}
+
+.anagram-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 46, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px 16px;
+  z-index: 100;
+}
+
+.anagram-modal {
+  background: #f6f6f6;
+  border-radius: 6px;
+  width: 100%;
+  max-width: 480px;
+  padding: 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(100vh - 120px);
+}
+
+.anagram-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.anagram-modal__title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.anagram-modal__close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: #0a0a2e;
+  padding: 0 6px;
+}
+
+.anagram-modal__form {
+  display: flex;
+  gap: 8px;
+}
+
+.anagram-modal__input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 16px;
+  padding: 8px 10px;
+  border: 2px solid #0a0a2e;
+  border-radius: 4px;
+  min-width: 0;
+}
+
+.anagram-modal__submit {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 14px;
+  background: #0a0a2e;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.anagram-modal__submit:hover {
+  background: #1a1a4e;
+}
+
+.anagram-modal__status {
+  padding: 8px 4px;
+  color: #555;
+  font-size: 14px;
+}
+
+.anagram-modal__status--error {
+  color: #a00;
+}
+
+.anagram-modal__retry {
+  margin-top: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  background: #0a0a2e;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.anagram-modal__results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  border-top: 1px solid #ddd;
+}
+
+.anagram-modal__result {
+  padding: 6px 4px;
+  font-size: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.anagram-modal__result:last-child {
+  border-bottom: none;
 }
 
 .crossword__sticky-clue {
