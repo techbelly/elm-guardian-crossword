@@ -77,9 +77,10 @@ app.ports.scrollIntoView.subscribe(function (id) {
 let dictPromise = null;
 app.ports.loadDictionary.subscribe(function () {
   if (!dictPromise) {
-    dictPromise = fetch("/dict.json").then(function (res) {
+    // The dictionary ships as a bare word list; Elm derives the anagram keys.
+    dictPromise = fetch("/dict.txt").then(function (res) {
       if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.json();
+      return res.text();
     });
   }
   dictPromise

@@ -15,7 +15,7 @@ click, which is what the modal's free-text field is for.
 
 -}
 
-import Anagram.Search as Search
+import Anagram.Letters as Letters
 
 
 type alias Token =
@@ -91,7 +91,7 @@ letters extra tokens =
         |> List.map .text
         |> String.concat
         |> (\picked -> picked ++ extra)
-        |> Search.sanitise
+        |> Letters.sanitise
 
 
 letterCount : String -> List Token -> Int

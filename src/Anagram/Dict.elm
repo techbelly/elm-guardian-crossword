@@ -11,13 +11,18 @@ module Anagram.Dict exposing
 those letters. Phrases ("NEW YORK") are indexed under their letters with spaces
 stripped from the key, while the displayed value preserves them.
 
+What ships is only the word list — one word per line, nothing else. Every key is
+a sorted permutation of the word it indexes, so storing both would be storing
+each word twice; deriving the keys here costs about a tenth of a second once and
+halves what has to be downloaded.
+
 Alongside the lookup table the dictionary keeps every key bucketed by length
-and tagged with its `Mask`, computed once when the dictionary is decoded. Search
-only ever walks these buckets; the lookup table is consulted at the end to turn
-winning keys back into displayable words.
+and tagged with its `Mask`. Search only ever walks these buckets; the lookup
+table is consulted at the end to turn winning keys back into displayable words.
 
 -}
 
+import Anagram.Letters exposing (sortedKey)
 import Anagram.Mask as Mask exposing (Mask)
 import Dict exposing (Dict)
 import Json.Decode as D
@@ -40,9 +45,33 @@ type alias Entry =
     }
 
 
+{-| Read the shipped word list: one word per line.
+-}
 decoder : D.Decoder Dictionary
 decoder =
-    D.map build (D.dict (D.list D.string))
+    D.map (String.lines >> fromWords) D.string
+
+
+fromWords : List String -> Dictionary
+fromWords words =
+    -- Folded from the right so that prepending leaves each key's entries in the
+    -- order the file listed them.
+    words
+        |> List.foldr indexWord Dict.empty
+        |> build
+
+
+indexWord : String -> Dict String (List String) -> Dict String (List String)
+indexWord word byKey =
+    let
+        key =
+            sortedKey word
+    in
+    if String.isEmpty key then
+        byKey
+
+    else
+        Dict.update key (\existing -> Just (word :: Maybe.withDefault [] existing)) byKey
 
 
 build : Dict String (List String) -> Dictionary

@@ -1,17 +1,25 @@
 #!/usr/bin/env node
 //
 // Preprocesses a word list into the anagram-finder dictionary at
-// `public/dict.json`.
+// `public/dict.txt`.
 //
 // Default behaviour: download UKACD from UKACD_URL, cache to scripts/ukacd.txt,
-// preprocess into public/dict.json.
+// preprocess into public/dict.txt.
 //
 // You can pass an explicit local path as the first arg to skip the download
 // (handy for testing with a smaller wordlist):
 //     node scripts/build-dict.mjs scripts/wordlist-mini.txt
 //
-// One entry per line. Comments (#) and blank lines are skipped. Phrases with
-// spaces keep the spaces in the displayed value; the index key strips them.
+// Output is one word per line, sorted case-insensitively. Nothing else: every
+// anagram key is a sorted permutation of the word it indexes, so shipping keys
+// as well would ship each word twice. The client derives them on load. Sorting
+// alphabetically rather than by key also gives gzip far more to work with —
+// neighbouring words share prefixes — which is most of why the file is a third
+// of the size of the equivalent JSON.
+//
+// One entry per line in the source. Comments (#) and blank lines are skipped.
+// Phrases with spaces keep the spaces in the displayed value; the index key
+// strips them.
 // Entries < 3 letters are dropped (they bloat multi-word search), as are
 // entries > 15 letters: the modal caps input at 15, so a longer key can never
 // be a subset of any target. UKACD holds whole quotations at the top end.
@@ -31,7 +39,7 @@ const repoRoot = resolve(here, "..");
 const UKACD_URL =
   "https://github.com/rdeits/cryptics/raw/refs/heads/master/raw_data/UKACD.txt";
 const defaultCachePath = resolve(repoRoot, "scripts/ukacd.txt");
-const outputPath = resolve(repoRoot, "public/dict.json");
+const outputPath = resolve(repoRoot, "public/dict.txt");
 
 const MIN_LETTERS = 3;
 const MAX_LETTERS = 15;
@@ -120,17 +128,17 @@ function isReconstructible(entry) {
     .every((part) => index.has(keyOf(part)));
 }
 
-// Stable output: sort keys and each value alphabetically so the file diffs cleanly.
-const sortedKeys = [...index.keys()].sort();
-const out = {};
-for (const k of sortedKeys) {
-  out[k] = index.get(k).sort();
-}
+// Stable output: one word per line, sorted case-insensitively so the file diffs
+// cleanly and gzip sees neighbouring words sharing prefixes.
+const collator = new Intl.Collator("en", { sensitivity: "base" });
+const out = [...index.values()]
+  .flat()
+  .sort((a, b) => collator.compare(a, b) || (a < b ? -1 : a > b ? 1 : 0));
 
-await writeFile(outputPath, JSON.stringify(out));
+await writeFile(outputPath, out.join("\n"));
 
 console.log(
-  `Read ${entriesIn} entries, indexed ${entriesIndexed - phrasesDropped} into ${sortedKeys.length} buckets.`,
+  `Read ${entriesIn} entries, indexed ${out.length} words under ${index.size} keys.`,
 );
 console.log(`Dropped ${phrasesDropped} phrases the search can build from their parts.`);
 console.log(`Wrote ${outputPath}`);

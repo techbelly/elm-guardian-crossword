@@ -4,9 +4,7 @@ module Anagram.Search exposing
     , WordLengths(..)
     , defaults
     , maxResultsFor
-    , sanitise
     , search
-    , sortedKey
     )
 
 {-| Finding every way to spell the input letters out of dictionary entries.
@@ -29,6 +27,7 @@ The search runs in three stages:
 -}
 
 import Anagram.Dict as Dict exposing (Dictionary, Entry)
+import Anagram.Letters exposing (sortedKey)
 import Anagram.Mask as Mask exposing (Mask)
 import Dict as CoreDict exposing (Dict)
 import Set exposing (Set)
@@ -87,33 +86,6 @@ maxResultsFor lengths =
 
         OneOf _ ->
             200
-
-
-
--- INPUT PREPARATION
-
-
-{-| Strip everything but letters and lowercase. Used before validation and
-search so the modal accepts pasted-in clue text containing punctuation, digits,
-and the cryptic enumeration `(8)`.
--}
-sanitise : String -> String
-sanitise input =
-    input
-        |> String.toLower
-        |> String.filter Char.isAlpha
-
-
-{-| Sorted lowercase letters of a string — the multiset key.
-For phrases ("NEW YORK") spaces are stripped along with all non-letters.
--}
-sortedKey : String -> String
-sortedKey s =
-    s
-        |> sanitise
-        |> String.toList
-        |> List.sort
-        |> String.fromList
 
 
 

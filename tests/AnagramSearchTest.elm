@@ -1,8 +1,11 @@
 module AnagramSearchTest exposing (suite)
 
 import Anagram.Dict as Dict exposing (Dictionary)
+import Anagram.Letters as Letters
 import Anagram.Search as Search
 import Expect
+import Json.Decode
+import Json.Encode
 import Test exposing (Test, describe, test)
 
 
@@ -12,18 +15,40 @@ suite =
         [ describe "sanitise"
             [ test "lowercases and strips non-letters" <|
                 \_ ->
-                    Search.sanitise "Confused starlet, picked her own jewel (8)"
+                    Letters.sanitise "Confused starlet, picked her own jewel (8)"
                         |> Expect.equal "confusedstarletpickedherownjewel"
             , test "empty after stripping" <|
                 \_ ->
-                    Search.sanitise "()!?"
+                    Letters.sanitise "()!?"
                         |> Expect.equal ""
             ]
         , describe "sortedKey"
             [ test "letters sorted" <|
-                \_ -> Search.sortedKey "STARLET" |> Expect.equal "aelrstt"
+                \_ -> Letters.sortedKey "STARLET" |> Expect.equal "aelrstt"
             , test "ignores spaces and case in phrases" <|
-                \_ -> Search.sortedKey "New York" |> Expect.equal "eknorwy"
+                \_ -> Letters.sortedKey "New York" |> Expect.equal "eknorwy"
+            ]
+        , describe "reading the shipped word list"
+            [ test "groups words under their sorted-letter key" <|
+                \_ ->
+                    decodeWords "EATS\nSEAT\nTEAS\nPOLE"
+                        |> Maybe.map (Dict.lookup "aest")
+                        |> Expect.equal (Just [ "EATS", "SEAT", "TEAS" ])
+            , test "keeps the display form, spaces and all" <|
+                \_ ->
+                    decodeWords "New York"
+                        |> Maybe.map (Dict.lookup "eknorwy")
+                        |> Expect.equal (Just [ "New York" ])
+            , test "blank lines are skipped rather than indexed" <|
+                \_ ->
+                    decodeWords "EATS\n\n"
+                        |> Maybe.map (Dict.entriesOfLength 0 >> List.length)
+                        |> Expect.equal (Just 0)
+            , test "a decoded list searches the same as an explicit index" <|
+                \_ ->
+                    decodeWords "EATS\nSEAT\nTEAS"
+                        |> Maybe.map (\dict -> Search.search Search.defaults dict "seat")
+                        |> Expect.equal (Just [ [ "EATS" ], [ "SEAT" ], [ "TEAS" ] ])
             ]
         , describe "search — single word"
             [ test "finds all permutations sharing the sorted key" <|
@@ -141,6 +166,12 @@ suite =
 
 
 -- TEST FIXTURES
+
+
+decodeWords : String -> Maybe Dictionary
+decodeWords blob =
+    Json.Decode.decodeValue Dict.decoder (Json.Encode.string blob)
+        |> Result.toMaybe
 
 
 defaults : Search.Config
