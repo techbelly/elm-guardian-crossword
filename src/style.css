@@ -205,6 +205,16 @@ body {
   color: #6a6a7a;
 }
 
+.landing__byline {
+  margin-bottom: 6px;
+  color: #0a0a2e;
+}
+
+.landing__byline a {
+  color: #0a0a2e;
+  font-weight: 500;
+}
+
 .landing__credit a {
   color: #6a6a7a;
 }

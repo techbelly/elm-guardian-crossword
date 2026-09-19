@@ -22,15 +22,27 @@ view model =
 viewCredit : Html Msg
 viewCredit =
     Html.footer [ Attr.class "landing__credit" ]
-        [ text "The anagram finder uses the "
-        , Html.a
-            [ Attr.href "https://github.com/rdeits/cryptics/blob/master/raw_data/UKACD.txt"
-            , Attr.target "_blank"
-            , Attr.rel "noopener"
+        [ p [ Attr.class "landing__byline" ]
+            [ text "Made by "
+            , link "https://whitebeard.blog" "Whitebeard"
             ]
-            [ text "UK Advanced Cryptics Dictionary" ]
-        , text " by J Ross Beresford, used under a BSD-style licence."
+        , p []
+            [ text "The anagram finder uses the "
+            , link "https://github.com/rdeits/cryptics/blob/master/raw_data/UKACD.txt"
+                "UK Advanced Cryptics Dictionary"
+            , text " by J Ross Beresford, used under a BSD-style licence."
+            ]
         ]
+
+
+link : String -> String -> Html Msg
+link href label =
+    Html.a
+        [ Attr.href href
+        , Attr.target "_blank"
+        , Attr.rel "noopener"
+        ]
+        [ text label ]
 
 
 
