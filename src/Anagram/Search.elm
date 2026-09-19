@@ -3,6 +3,7 @@ module Anagram.Search exposing
     , Result
     , WordLengths(..)
     , defaults
+    , maxResultsFor
     , sanitise
     , search
     , sortedKey
@@ -57,6 +58,13 @@ type alias Config =
     }
 
 
+{-| Results are ordered alphabetically within a word-count tier, so the cap
+doesn't trim the least likely answers — it trims the end of the alphabet. A free
+search has far more results than anyone will read, so it caps low and stays
+quick; callers that narrow the search with an enumeration should raise the cap,
+because there the set is small enough to show whole and the answer must not be
+the one cut. See `maxResultsFor`.
+-}
 defaults : Config
 defaults =
     { maxWords = 4
@@ -64,6 +72,21 @@ defaults =
     , maxResults = 50
     , lengths = AnyLengths
     }
+
+
+{-| How many results are worth finding for a given constraint. Searching for the
+first fifty free-form results takes tens of milliseconds; searching for two
+hundred takes seconds, because the cheap shallow combinations run out. An
+enumeration narrows the candidates enough that the larger cap stays instant.
+-}
+maxResultsFor : WordLengths -> Int
+maxResultsFor lengths =
+    case lengths of
+        AnyLengths ->
+            50
+
+        OneOf _ ->
+            200
 
 
 
@@ -252,7 +275,7 @@ coverFree config ctx wordsLeft remaining picked acc =
 
     else if remaining == "" then
         if wordsLeft == 0 then
-            record picked acc
+            record (List.sort picked) acc
 
         else
             acc
@@ -287,7 +310,12 @@ coverable ctx minWordLength wordsLeft remaining =
         && (len <= wordsLeft * ctx.longest)
 
 
-{-| Cover the target using exactly this multiset of word lengths, in any order.
+{-| Cover the target using exactly this list of word lengths.
+
+Lengths may be filled in any order — the rarest-letter branch decides which word
+is found first — but each one keeps the position it held in the enumeration, so
+an answer to `(8,7)` is reported as its eight-letter word then its seven.
+
 -}
 coverLengths : Context -> String -> List Int -> Accumulator -> Accumulator
 coverLengths ctx remaining lengths acc =
@@ -295,41 +323,71 @@ coverLengths ctx remaining lengths acc =
         acc
 
     else
-        coverLengthsHelp ctx lengths remaining [] acc
+        coverLengthsHelp ctx (List.indexedMap Tuple.pair lengths) remaining [] acc
 
 
-coverLengthsHelp : Context -> List Int -> String -> List String -> Accumulator -> Accumulator
-coverLengthsHelp ctx lengths remaining picked acc =
+{-| An unfilled word of the enumeration: where it sits, and how long it is.
+-}
+type alias Slot =
+    ( Int, Int )
+
+
+coverLengthsHelp : Context -> List Slot -> String -> List ( Int, String ) -> Accumulator -> Accumulator
+coverLengthsHelp ctx slots remaining picked acc =
     if isFull ctx acc then
         acc
 
     else if remaining == "" then
-        if List.isEmpty lengths then
-            record picked acc
+        if List.isEmpty slots then
+            record (inEnumerationOrder picked) acc
 
         else
             acc
 
-    else if List.isEmpty lengths then
+    else if List.isEmpty slots then
         acc
 
     else
         rarestBucket ctx remaining
             |> List.foldl
                 (\key inner ->
-                    case removeFirst (String.length key) lengths of
+                    case takeSlot (String.length key) slots of
                         Nothing ->
                             inner
 
-                        Just remainingLengths ->
+                        Just ( position, remainingSlots ) ->
                             case subtract remaining key of
                                 Nothing ->
                                     inner
 
                                 Just rest ->
-                                    coverLengthsHelp ctx remainingLengths rest (key :: picked) inner
+                                    coverLengthsHelp ctx remainingSlots rest (( position, key ) :: picked) inner
                 )
                 acc
+
+
+inEnumerationOrder : List ( Int, String ) -> List String
+inEnumerationOrder picked =
+    picked
+        |> List.sortBy Tuple.first
+        |> List.map Tuple.second
+
+
+{-| Claim the first unfilled slot of this length, reporting where it sat.
+-}
+takeSlot : Int -> List Slot -> Maybe ( Int, List Slot )
+takeSlot length slots =
+    case slots of
+        [] ->
+            Nothing
+
+        (( position, slotLength ) as slot) :: rest ->
+            if slotLength == length then
+                Just ( position, rest )
+
+            else
+                takeSlot length rest
+                    |> Maybe.map (\( taken, remaining ) -> ( taken, slot :: remaining ))
 
 
 {-| Candidates containing the least common of the remaining letters. Every
@@ -378,22 +436,20 @@ isFull ctx acc =
     acc.count >= ctx.maxResults
 
 
-{-| Record a combination, ignoring reorderings of one already found.
+{-| Record a combination in the order it should be shown, ignoring reorderings
+of one already found.
 -}
 record : List String -> Accumulator -> Accumulator
-record picked acc =
+record display acc =
     let
-        sorted =
-            List.sort picked
-
         canonical =
-            String.join " " sorted
+            display |> List.sort |> String.join " "
     in
     if Set.member canonical acc.seen then
         acc
 
     else
-        { combos = sorted :: acc.combos
+        { combos = display :: acc.combos
         , seen = Set.insert canonical acc.seen
         , count = acc.count + 1
         }
@@ -505,18 +561,3 @@ distinct list =
         |> Tuple.second
         |> List.reverse
 
-
-{-| Drop one occurrence of `n`, or Nothing if it isn't there.
--}
-removeFirst : Int -> List Int -> Maybe (List Int)
-removeFirst n list =
-    case list of
-        [] ->
-            Nothing
-
-        x :: rest ->
-            if x == n then
-                Just rest
-
-            else
-                removeFirst n rest |> Maybe.map (\r -> x :: r)

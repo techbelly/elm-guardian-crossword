@@ -94,6 +94,11 @@ suite =
                     Search.search { defaults | lengths = Search.OneOf [ [ 3, 4 ] ] } mixedDict "starlet"
                         |> List.length
                         |> Expect.equal 3
+            , test "words are reported in the order the enumeration gives" <|
+                \_ ->
+                    -- (3,4) is the same pairing as (4,3), read out the other way round
+                    Search.search { defaults | lengths = Search.OneOf [ [ 3, 4 ] ] } mixedDict "starlet"
+                        |> Expect.equal [ [ "LET", "RATS" ], [ "LET", "STAR" ], [ "LET", "TARS" ] ]
             , test "alternatives are tried in turn" <|
                 \_ ->
                     -- how a hyphenated (4-3) reaches the search: either two words or one of 7

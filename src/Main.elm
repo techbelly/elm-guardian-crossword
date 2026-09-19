@@ -458,7 +458,7 @@ computeOutcome dictState data =
                             |> Maybe.map (Search.OneOf << Enumeration.alternatives)
                             |> Maybe.withDefault Search.AnyLengths
                 in
-                case Search.search { defaults | lengths = lengths } dict input of
+                case Search.search { defaults | lengths = lengths, maxResults = Search.maxResultsFor lengths } dict input of
                     [] ->
                         emptyOutcome lengths
 
