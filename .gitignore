@@ -4,5 +4,5 @@ dist/
 .coverage/
 
 # UKACD source cache — regenerable via `npm run build-dict`. The processed
-# public/dict.json is committed.
+# public/dict.txt is committed.
 scripts/ukacd.txt
