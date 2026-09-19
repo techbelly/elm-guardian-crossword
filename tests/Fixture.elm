@@ -3,6 +3,7 @@ module Fixture exposing (Fixture, fromGrid, fromModel, renderFixture, toModel, w
 import Crossword.Decode exposing (buildCellInfos)
 import Crossword.Grid as Grid
 import Crossword.Selection as Selection
+import Crossword.Timer as Timer
 import Crossword.Types as Types
     exposing
         ( ActiveModel
@@ -16,6 +17,7 @@ import Crossword.Types as Types
         , Selection
         )
 import Dict exposing (Dict)
+import Time
 
 
 type alias Fixture =
@@ -39,12 +41,16 @@ fromModel model =
 toModel : Fixture -> ActiveModel
 toModel fixture =
     { puzzle = fixture.puzzle
+    , path = "fixture/0"
     , grid = fixture.grid
     , selection = fixture.selection
     , navigationStyle = Types.NYT
     , clueSelection = ""
     , dictionary = Types.DictNotLoaded
     , anagramModal = Types.AnagramClosed
+    , timer = Timer.resume 0
+    , now = Time.millisToPosix 0
+    , history = []
     }
 
 
@@ -86,6 +92,7 @@ fromGrid rows =
         puzzle : Puzzle
         puzzle =
             { id = "fixture"
+            , published = Time.millisToPosix 0
             , puzzleNumber = 0
             , name = "Fixture"
             , setter = Nothing

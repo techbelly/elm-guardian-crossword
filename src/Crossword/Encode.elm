@@ -5,8 +5,19 @@ import Dict
 import Json.Encode as Encode
 
 
-encodeGrid : Grid -> Encode.Value
-encodeGrid grid =
+{-| The payload saved to localStorage: the cells entered so far, tagged with
+the puzzle they belong to so the JS side knows where to put them.
+-}
+encodeGrid : String -> Grid -> Encode.Value
+encodeGrid puzzleId grid =
+    Encode.object
+        [ ( "puzzleId", Encode.string puzzleId )
+        , ( "cells", encodeCells grid )
+        ]
+
+
+encodeCells : Grid -> Encode.Value
+encodeCells grid =
     grid
         |> Dict.toList
         |> List.filterMap

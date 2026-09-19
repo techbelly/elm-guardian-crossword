@@ -12,8 +12,9 @@ import Crossword.Types
         )
 import Crossword.View.Clues as ViewClues
 import Crossword.View.Grid as ViewGrid
+import Crossword.View.Landing as ViewLanding
 import Crossword.View.Title as ViewTitle
-import Html exposing (Html, button, div, h1, input, label, text)
+import Html exposing (Html, button, div, input, label, text)
 import Html.Attributes as Attr
 import Html.Events
 import Json.Decode
@@ -22,19 +23,11 @@ import Json.Decode
 view : Model -> Html Msg
 view model =
     case model of
-        Failed err ->
-            errorScreen err
+        Landing landingModel ->
+            ViewLanding.view landingModel
 
         Active activeModel ->
             crosswordDisplay activeModel
-
-
-errorScreen : String -> Html Msg
-errorScreen err =
-    div []
-        [ h1 [] [ text "Error loading crossword" ]
-        , Html.pre [] [ text err ]
-        ]
 
 
 crosswordDisplay : ActiveModel -> Html Msg
@@ -72,7 +65,8 @@ crosswordDisplay model =
             ++ keyHandlerAttrs
         )
         [ div [ Attr.class "crossword__top" ]
-            [ ViewTitle.viewTitle model.puzzle
+            [ viewBackLink
+            , ViewTitle.viewTitle model.puzzle
             , viewAnagramButton
             ]
         , ViewClues.viewStickyBar model
@@ -83,6 +77,16 @@ crosswordDisplay model =
         , viewNavigationToggle model.navigationStyle
         , AnagramModal.view model.dictionary model.anagramModal
         ]
+
+
+viewBackLink : Html Msg
+viewBackLink =
+    button
+        [ Attr.class "crossword__back"
+        , Attr.type_ "button"
+        , Html.Events.onClick BackToLanding
+        ]
+        [ text "← All crosswords" ]
 
 
 viewAnagramButton : Html Msg

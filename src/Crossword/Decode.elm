@@ -15,14 +15,16 @@ import Crossword.Types as Types
         , SeparatorKind(..)
         )
 import Crossword.Grid as Grid
+import Time
 import Dict exposing (Dict)
 import Json.Decode as Decode exposing (Decoder)
 
 
 decodePuzzle : Decoder Puzzle
 decodePuzzle =
-    Decode.map7 buildPuzzle
+    Decode.map8 buildPuzzle
         (Decode.field "id" Decode.string)
+        (Decode.field "date" (Decode.map Time.millisToPosix Decode.int))
         (Decode.field "number" Decode.int)
         (Decode.field "name" Decode.string)
         (Decode.maybe (Decode.at [ "creator", "name" ] Decode.string))
@@ -135,8 +137,8 @@ decodeClue =
 -- Build the full Puzzle from parsed entries, pre-computing all derived data.
 
 
-buildPuzzle : String -> Int -> String -> Maybe String -> { cols : Int, rows : Int } -> List Clue -> String -> Puzzle
-buildPuzzle id number name setter dims clues crosswordType =
+buildPuzzle : String -> Time.Posix -> Int -> String -> Maybe String -> { cols : Int, rows : Int } -> List Clue -> String -> Puzzle
+buildPuzzle id published number name setter dims clues crosswordType =
     let
         acrossClues =
             clues
@@ -155,6 +157,7 @@ buildPuzzle id number name setter dims clues crosswordType =
             buildCellInfos clues
     in
     { id = id
+    , published = published
     , puzzleNumber = number
     , name = name
     , setter = setter

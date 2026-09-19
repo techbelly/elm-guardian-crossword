@@ -1,5 +1,7 @@
 module Crossword.Types exposing
     ( ActiveModel
+    , LandingModel
+    , LoadState(..)
     , AnagramModalState(..)
     , AnagramModalData
     , AnagramSearchOutcome(..)
@@ -30,8 +32,12 @@ module Crossword.Types exposing
 
 import Anagram.Dict exposing (Dictionary)
 import Anagram.Fodder exposing (Token)
+import Browser.Events
+import Crossword.History as History
+import Crossword.Timer exposing (Timer)
 import Dict exposing (Dict)
 import Json.Decode
+import Time
 
 
 type NavigationStyle
@@ -201,6 +207,7 @@ type alias Selection =
 
 type alias Puzzle =
     { id : String
+    , published : Time.Posix
     , puzzleNumber : Int
     , name : String
     , setter : Maybe String
@@ -212,23 +219,44 @@ type alias Puzzle =
 
 
 
--- Model is a sum type: either we have a valid puzzle or a decode error.
+-- Model is a sum type: either we are choosing a crossword or solving one.
 -- No invalid state where both or neither exist.
 
 
 type Model
-    = Failed String
+    = Landing LandingModel
     | Active ActiveModel
+
+
+type alias LandingModel =
+    { path : String
+    , history : List History.Entry
+    , load : LoadState
+    , now : Time.Posix
+    }
+
+
+{-| Fetching a puzzle is the one thing the landing page does; its outcome is
+either still pending or a reason it didn't work.
+-}
+type LoadState
+    = NotLoading
+    | Loading
+    | LoadFailed String
 
 
 type alias ActiveModel =
     { puzzle : Puzzle
+    , path : String
     , grid : Grid
     , selection : Maybe Selection
     , navigationStyle : NavigationStyle
     , clueSelection : String
     , dictionary : DictionaryState
     , anagramModal : AnagramModalState
+    , timer : Timer
+    , now : Time.Posix
+    , history : List History.Entry
     }
 
 
@@ -275,7 +303,15 @@ type AnagramSearchOutcome
 
 
 type Msg
-    = CellClicked Position
+    = PathChanged String
+    | LoadRequested
+    | HistoryEntryClicked String
+    | PuzzleLoaded Json.Decode.Value
+    | PuzzleLoadFailed String
+    | Tick Time.Posix
+    | VisibilityChanged Browser.Events.Visibility
+    | BackToLanding
+    | CellClicked Position
     | KeyPressed String Bool
     | ClueClicked ClueId
     | SetNavigation NavigationStyle
