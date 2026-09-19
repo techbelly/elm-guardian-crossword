@@ -5,6 +5,7 @@ import Anagram.Enumeration as Enumeration
 import Anagram.Fodder as Fodder
 import Anagram.Search as Search
 import Browser
+import Browser.Dom
 import Browser.Events
 import Crossword.Decode as Decode
 import Crossword.Encode as Encode
@@ -271,7 +272,9 @@ updateActive msg model =
 
         CloseAnagramModal ->
             ( { model | anagramModal = AnagramClosed }
-            , Cmd.none
+              -- The modal took keyboard focus; without this the grid keeps its
+              -- highlighted square but stops accepting letters.
+            , Browser.Dom.focus ViewApp.gridElementId |> Task.attempt (\_ -> FocusRestored)
             )
 
         AnagramTokenToggled index ->
@@ -363,6 +366,9 @@ updateActive msg model =
             ( model, Cmd.none )
 
         BackToLanding ->
+            ( model, Cmd.none )
+
+        FocusRestored ->
             ( model, Cmd.none )
 
         NoopClick ->

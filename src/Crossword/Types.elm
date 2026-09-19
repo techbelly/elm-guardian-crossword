@@ -325,4 +325,5 @@ type Msg
     | AnagramRunSearch
     | DictionaryLoaded Json.Decode.Value
     | DictionaryLoadFailed String
+    | FocusRestored
     | NoopClick

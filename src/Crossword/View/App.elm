@@ -1,4 +1,4 @@
-module Crossword.View.App exposing (view)
+module Crossword.View.App exposing (gridElementId, view)
 
 import Anagram.Modal as AnagramModal
 import Crossword.Keyboard as Keyboard
@@ -18,6 +18,15 @@ import Html exposing (Html, button, div, input, label, text)
 import Html.Attributes as Attr
 import Html.Events
 import Json.Decode
+
+
+{-| The element that holds keyboard focus while solving: key handling lives on
+the container, not the cells. Focus has to be put back after the anagram modal
+takes it away.
+-}
+gridElementId : String
+gridElementId =
+    "crossword"
 
 
 view : Model -> Html Msg
@@ -60,6 +69,7 @@ crosswordDisplay model =
     in
     div
         ([ Attr.class "crossword"
+         , Attr.id gridElementId
          , Attr.tabindex 0
          ]
             ++ keyHandlerAttrs

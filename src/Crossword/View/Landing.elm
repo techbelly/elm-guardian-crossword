@@ -15,6 +15,21 @@ view model =
         , viewLoader model
         , viewStats model.history
         , viewHistory model.history
+        , viewCredit
+        ]
+
+
+viewCredit : Html Msg
+viewCredit =
+    Html.footer [ Attr.class "landing__credit" ]
+        [ text "The anagram finder uses the "
+        , Html.a
+            [ Attr.href "https://github.com/rdeits/cryptics/blob/master/raw_data/UKACD.txt"
+            , Attr.target "_blank"
+            , Attr.rel "noopener"
+            ]
+            [ text "UK Advanced Cryptics Dictionary" ]
+        , text " by J Ross Beresford, used under a BSD-style licence."
         ]
 
 

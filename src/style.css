@@ -197,6 +197,22 @@ body {
   font-weight: 500;
 }
 
+.landing__credit {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e2e8;
+  font-size: 13px;
+  color: #6a6a7a;
+}
+
+.landing__credit a {
+  color: #6a6a7a;
+}
+
+.landing__credit a:hover {
+  color: #0a0a2e;
+}
+
 .crossword__back {
   font-family: inherit;
   font-size: 13px;
