@@ -29,6 +29,7 @@ module Crossword.Types exposing
     )
 
 import Anagram.Dict exposing (Dictionary)
+import Anagram.Fodder exposing (Token)
 import Dict exposing (Dict)
 import Json.Decode
 
@@ -243,7 +244,8 @@ type DictionaryState
 
 
 
--- Anagram modal state. Closed by default; opening tracks input and last search.
+-- Anagram modal state. Closed by default; opening snapshots the selected clue
+-- as togglable fodder tokens plus its enumeration.
 
 
 type AnagramModalState
@@ -252,7 +254,9 @@ type AnagramModalState
 
 
 type alias AnagramModalData =
-    { input : String
+    { tokens : List Token
+    , extra : String
+    , enumeration : String
     , lastSearch : Maybe AnagramSearchOutcome
     }
 
@@ -262,6 +266,7 @@ type AnagramSearchOutcome
     | AnagramTooShort
     | AnagramTooLong
     | AnagramNoResults
+    | AnagramNoResultsForLengths
     | AnagramResults (List (List String))
 
 
@@ -277,7 +282,9 @@ type Msg
     | ClueSelectionChanged String
     | OpenAnagramModal
     | CloseAnagramModal
-    | AnagramInputChanged String
+    | AnagramTokenToggled Int
+    | AnagramExtraChanged String
+    | AnagramEnumerationChanged String
     | AnagramSubmit
     | AnagramRunSearch
     | DictionaryLoaded Json.Decode.Value

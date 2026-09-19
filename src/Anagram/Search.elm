@@ -1,27 +1,59 @@
 module Anagram.Search exposing
     ( Config
     , Result
+    , WordLengths(..)
     , defaults
     , sanitise
     , search
     , sortedKey
     )
 
-import Anagram.Dict as Dict exposing (Dictionary)
+{-| Finding every way to spell the input letters out of dictionary entries.
 
+The search runs in three stages:
+
+1.  **Prune.** Only keys whose letters fit inside the target can appear in any
+    solution. One pass over the length buckets, rejecting on `Mask` first and
+    on exact multiset containment second, cuts ~217k keys to a few hundred.
+
+2.  **Cover.** Combinations are built by repeatedly picking the *rarest*
+    remaining letter and trying only candidates containing it. Every branch
+    therefore consumes that letter, which bounds the depth and collapses the
+    branching factor — the alternative, trying every candidate at every node,
+    is what made this slow. Word counts are explored shallowest-first so the
+    result cap truncates the least interesting tail.
+
+3.  **Expand.** Winning keys are turned back into the words sharing them.
+
+-}
+
+import Anagram.Dict as Dict exposing (Dictionary, Entry)
+import Anagram.Mask as Mask exposing (Mask)
+import Dict as CoreDict exposing (Dict)
+import Set exposing (Set)
 
 
 {-| A single result is the list of dictionary entries that together use every
-input letter exactly once. The list is in the order picked by the search.
+input letter exactly once.
 -}
 type alias Result =
     List String
+
+
+{-| Whether the caller knows how the letters split across words. `OneOf` holds
+the alternatives an enumeration allows; a combination satisfies it by matching
+any one of them, in any order.
+-}
+type WordLengths
+    = AnyLengths
+    | OneOf (List (List Int))
 
 
 type alias Config =
     { maxWords : Int
     , minWordLength : Int
     , maxResults : Int
+    , lengths : WordLengths
     }
 
 
@@ -29,7 +61,8 @@ defaults : Config
 defaults =
     { maxWords = 4
     , minWordLength = 3
-    , maxResults = 30
+    , maxResults = 50
+    , lengths = AnyLengths
     }
 
 
@@ -66,7 +99,7 @@ sortedKey s =
 
 {-| Find anagrams of the sanitised input. All input letters must be used.
 Results are sorted by longest individual word descending, then alphabetically,
-then capped at config.maxResults.
+then capped at `config.maxResults`.
 -}
 search : Config -> Dictionary -> String -> List Result
 search config dict input =
@@ -80,55 +113,294 @@ search config dict input =
     else
         let
             candidates =
-                Dict.keys dict
-                    |> List.filter (\k -> String.length k >= config.minWordLength)
-                    |> List.sort
+                prune config dict target
+
+            ctx =
+                buildContext config.maxResults candidates
         in
-        searchHelp config dict candidates target []
+        cover config ctx target
+            |> List.concatMap (expand dict)
             |> rank
             |> List.take config.maxResults
 
 
-searchHelp : Config -> Dictionary -> List String -> String -> List String -> List Result
-searchHelp config dict candidates remaining picked =
-    if remaining == "" then
-        expand dict (List.reverse picked)
 
-    else if List.length picked >= config.maxWords then
-        []
+-- STAGE 1: PRUNE
+
+
+{-| Dictionary keys that could take part in a solution: right length, letters
+available in the target.
+-}
+prune : Config -> Dictionary -> String -> List String
+prune config dict target =
+    let
+        targetMask =
+            Mask.fromSortedKey target
+    in
+    candidateLengths config (String.length target)
+        |> List.concatMap (\n -> Dict.entriesOfLength n dict)
+        |> List.filterMap (keepCandidate targetMask target)
+
+
+keepCandidate : Mask -> String -> Entry -> Maybe String
+keepCandidate targetMask target entry =
+    if Mask.subsetOf entry.mask targetMask && subtract target entry.key /= Nothing then
+        Just entry.key
 
     else
-        candidates
-            |> List.concatMap
-                (\k ->
-                    if String.length k > String.length remaining then
-                        []
-
-                    else
-                        case subtract remaining k of
-                            Nothing ->
-                                []
-
-                            Just newRemaining ->
-                                searchHelp config dict (dropBefore k candidates) newRemaining (k :: picked)
-                )
+        Nothing
 
 
-{-| Drop list entries that come strictly before `pivot` (lex order). The pivot
-itself is kept so the same key can be reused (e.g. anagram = same word twice).
+{-| The key lengths worth scanning. Under an enumeration only the lengths it
+mentions can appear at all, which is the cheapest pruning available.
 -}
-dropBefore : String -> List String -> List String
-dropBefore pivot list =
-    case list of
-        [] ->
+candidateLengths : Config -> Int -> List Int
+candidateLengths config targetLength =
+    case config.lengths of
+        AnyLengths ->
+            List.range config.minWordLength targetLength
+
+        OneOf alternatives ->
+            alternatives
+                |> List.concat
+                |> List.filter (\n -> n <= targetLength)
+                |> distinct
+
+
+
+-- STAGE 2: COVER
+
+
+type alias Context =
+    { buckets : Dict Char (List String)
+    , sizes : Dict Char Int
+    , longest : Int
+    , maxResults : Int
+    }
+
+
+buildContext : Int -> List String -> Context
+buildContext maxResults candidates =
+    let
+        buckets =
+            List.foldl indexByLetter CoreDict.empty candidates
+    in
+    { buckets = buckets
+    , sizes = CoreDict.map (\_ keys -> List.length keys) buckets
+    , longest =
+        candidates
+            |> List.map String.length
+            |> List.maximum
+            |> Maybe.withDefault 0
+    , maxResults = maxResults
+    }
+
+
+indexByLetter : String -> Dict Char (List String) -> Dict Char (List String)
+indexByLetter key buckets =
+    key
+        |> String.toList
+        |> distinct
+        |> List.foldl
+            (\c acc -> CoreDict.update c (\existing -> Just (key :: Maybe.withDefault [] existing)) acc)
+            buckets
+
+
+type alias Accumulator =
+    { combos : List (List String)
+    , seen : Set String
+    , count : Int
+    }
+
+
+emptyAccumulator : Accumulator
+emptyAccumulator =
+    { combos = [], seen = Set.empty, count = 0 }
+
+
+{-| Key combinations covering the target exactly.
+-}
+cover : Config -> Context -> String -> List (List String)
+cover config ctx target =
+    let
+        final =
+            case config.lengths of
+                AnyLengths ->
+                    List.range 1 config.maxWords
+                        |> List.foldl (deepenTo config ctx target) emptyAccumulator
+
+                OneOf alternatives ->
+                    alternatives
+                        |> List.filter (\lengths -> List.sum lengths == String.length target)
+                        |> List.foldl (coverLengths ctx target) emptyAccumulator
+    in
+    List.reverse final.combos
+
+
+{-| One round of iterative deepening: combinations of exactly `wordCount` keys.
+Shallower rounds have already run, so nothing is rediscovered.
+-}
+deepenTo : Config -> Context -> String -> Int -> Accumulator -> Accumulator
+deepenTo config ctx target wordCount acc =
+    coverFree config ctx wordCount target [] acc
+
+
+coverFree : Config -> Context -> Int -> String -> List String -> Accumulator -> Accumulator
+coverFree config ctx wordsLeft remaining picked acc =
+    if isFull ctx acc then
+        acc
+
+    else if remaining == "" then
+        if wordsLeft == 0 then
+            record picked acc
+
+        else
+            acc
+
+    else if not (coverable ctx config.minWordLength wordsLeft remaining) then
+        acc
+
+    else
+        rarestBucket ctx remaining
+            |> List.foldl
+                (\key inner ->
+                    case subtract remaining key of
+                        Nothing ->
+                            inner
+
+                        Just rest ->
+                            coverFree config ctx (wordsLeft - 1) rest (key :: picked) inner
+                )
+                acc
+
+
+{-| Whether `wordsLeft` further words could possibly account for `remaining`.
+-}
+coverable : Context -> Int -> Int -> String -> Bool
+coverable ctx minWordLength wordsLeft remaining =
+    let
+        len =
+            String.length remaining
+    in
+    (wordsLeft > 0)
+        && (len >= wordsLeft * minWordLength)
+        && (len <= wordsLeft * ctx.longest)
+
+
+{-| Cover the target using exactly this multiset of word lengths, in any order.
+-}
+coverLengths : Context -> String -> List Int -> Accumulator -> Accumulator
+coverLengths ctx remaining lengths acc =
+    if isFull ctx acc then
+        acc
+
+    else
+        coverLengthsHelp ctx lengths remaining [] acc
+
+
+coverLengthsHelp : Context -> List Int -> String -> List String -> Accumulator -> Accumulator
+coverLengthsHelp ctx lengths remaining picked acc =
+    if isFull ctx acc then
+        acc
+
+    else if remaining == "" then
+        if List.isEmpty lengths then
+            record picked acc
+
+        else
+            acc
+
+    else if List.isEmpty lengths then
+        acc
+
+    else
+        rarestBucket ctx remaining
+            |> List.foldl
+                (\key inner ->
+                    case removeFirst (String.length key) lengths of
+                        Nothing ->
+                            inner
+
+                        Just remainingLengths ->
+                            case subtract remaining key of
+                                Nothing ->
+                                    inner
+
+                                Just rest ->
+                                    coverLengthsHelp ctx remainingLengths rest (key :: picked) inner
+                )
+                acc
+
+
+{-| Candidates containing the least common of the remaining letters. Every
+solution must contain some word covering that letter, so restricting the branch
+to this bucket loses nothing and discards almost everything.
+-}
+rarestBucket : Context -> String -> List String
+rarestBucket ctx remaining =
+    case rarestLetter ctx remaining of
+        Nothing ->
             []
 
-        x :: rest ->
-            if x < pivot then
-                dropBefore pivot rest
+        Just letter ->
+            CoreDict.get letter ctx.buckets |> Maybe.withDefault []
+
+
+rarestLetter : Context -> String -> Maybe Char
+rarestLetter ctx remaining =
+    remaining
+        |> String.toList
+        |> distinct
+        |> List.foldl (keepRarer ctx) Nothing
+        |> Maybe.map Tuple.first
+
+
+keepRarer : Context -> Char -> Maybe ( Char, Int ) -> Maybe ( Char, Int )
+keepRarer ctx candidate best =
+    let
+        size =
+            CoreDict.get candidate ctx.sizes |> Maybe.withDefault 0
+    in
+    case best of
+        Just ( _, bestSize ) ->
+            if size < bestSize then
+                Just ( candidate, size )
 
             else
-                list
+                best
+
+        Nothing ->
+            Just ( candidate, size )
+
+
+isFull : Context -> Accumulator -> Bool
+isFull ctx acc =
+    acc.count >= ctx.maxResults
+
+
+{-| Record a combination, ignoring reorderings of one already found.
+-}
+record : List String -> Accumulator -> Accumulator
+record picked acc =
+    let
+        sorted =
+            List.sort picked
+
+        canonical =
+            String.join " " sorted
+    in
+    if Set.member canonical acc.seen then
+        acc
+
+    else
+        { combos = sorted :: acc.combos
+        , seen = Set.insert canonical acc.seen
+        , count = acc.count + 1
+        }
+
+
+
+-- MULTISET ARITHMETIC
 
 
 {-| Multiset subtraction on sorted-letter strings. Returns Nothing if `sub` is
@@ -159,6 +431,10 @@ subtractHelp super sub acc =
 
                     else
                         Nothing
+
+
+
+-- STAGE 3: EXPAND
 
 
 {-| Turn a list of picked sorted-letter keys into all word-tuple combinations.
@@ -208,3 +484,39 @@ longestWordLength r =
         |> List.map String.length
         |> List.maximum
         |> Maybe.withDefault 0
+
+
+
+-- HELPERS
+
+
+distinct : List comparable -> List comparable
+distinct list =
+    list
+        |> List.foldl
+            (\item ( seen, acc ) ->
+                if Set.member item seen then
+                    ( seen, acc )
+
+                else
+                    ( Set.insert item seen, item :: acc )
+            )
+            ( Set.empty, [] )
+        |> Tuple.second
+        |> List.reverse
+
+
+{-| Drop one occurrence of `n`, or Nothing if it isn't there.
+-}
+removeFirst : Int -> List Int -> Maybe (List Int)
+removeFirst n list =
+    case list of
+        [] ->
+            Nothing
+
+        x :: rest ->
+            if x == n then
+                Just rest
+
+            else
+                removeFirst n rest |> Maybe.map (\r -> x :: r)

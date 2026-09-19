@@ -12,7 +12,9 @@
 //
 // One entry per line. Comments (#) and blank lines are skipped. Phrases with
 // spaces keep the spaces in the displayed value; the index key strips them.
-// Entries < 3 letters are dropped (they bloat multi-word search).
+// Entries < 3 letters are dropped (they bloat multi-word search), as are
+// entries > 15 letters: the modal caps input at 15, so a longer key can never
+// be a subset of any target. UKACD holds whole quotations at the top end.
 //
 // UKACD license: 3-clause BSD-style (Beresford, 2009). See LICENSE-UKACD.
 // The source file begins with the license header, followed by a `---` divider,
@@ -32,6 +34,7 @@ const defaultCachePath = resolve(repoRoot, "scripts/ukacd.txt");
 const outputPath = resolve(repoRoot, "public/dict.json");
 
 const MIN_LETTERS = 3;
+const MAX_LETTERS = 15;
 
 let raw;
 const explicitPath = process.argv[2];
@@ -80,7 +83,7 @@ for (const rawLine of raw.split(/\r?\n/)) {
 
   const display = line;
   const letters = line.toLowerCase().replace(/[^a-z]/g, "");
-  if (letters.length < MIN_LETTERS) continue;
+  if (letters.length < MIN_LETTERS || letters.length > MAX_LETTERS) continue;
 
   const key = letters.split("").sort().join("");
   const bucket = index.get(key);

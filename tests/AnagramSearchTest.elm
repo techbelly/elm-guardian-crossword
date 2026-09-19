@@ -83,6 +83,33 @@ suite =
                     Search.search { defaults | maxWords = 1 } abcDict "abcabc"
                         |> Expect.equal []
             ]
+        , describe "search — word lengths"
+            [ test "an enumeration keeps only combinations with those lengths" <|
+                \_ ->
+                    -- "starlet" can be one 7-letter word or STAR + LET; (4,3) admits only the pair
+                    Search.search { defaults | lengths = Search.OneOf [ [ 4, 3 ] ] } mixedDict "starlet"
+                        |> Expect.equal [ [ "RATS", "LET" ], [ "STAR", "LET" ], [ "TARS", "LET" ] ]
+            , test "lengths match in any order" <|
+                \_ ->
+                    Search.search { defaults | lengths = Search.OneOf [ [ 3, 4 ] ] } mixedDict "starlet"
+                        |> List.length
+                        |> Expect.equal 3
+            , test "alternatives are tried in turn" <|
+                \_ ->
+                    -- how a hyphenated (4-3) reaches the search: either two words or one of 7
+                    Search.search { defaults | lengths = Search.OneOf [ [ 4, 3 ], [ 7 ] ] } mixedDict "starlet"
+                        |> List.length
+                        |> Expect.equal 6
+            , test "an enumeration that doesn't total the input finds nothing" <|
+                \_ ->
+                    Search.search { defaults | lengths = Search.OneOf [ [ 4, 4 ] ] } mixedDict "starlet"
+                        |> Expect.equal []
+            , test "word lengths ignore maxWords" <|
+                \_ ->
+                    Search.search { defaults | maxWords = 1, lengths = Search.OneOf [ [ 4, 3 ] ] } mixedDict "starlet"
+                        |> List.length
+                        |> Expect.equal 3
+            ]
         , describe "edge cases"
             [ test "empty input returns empty" <|
                 \_ -> Search.search defaults seatDict "" |> Expect.equal []

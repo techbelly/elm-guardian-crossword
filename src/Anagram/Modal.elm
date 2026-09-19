@@ -1,5 +1,7 @@
 module Anagram.Modal exposing (view)
 
+import Anagram.Enumeration as Enumeration
+import Anagram.Fodder as Fodder exposing (Token)
 import Crossword.Types
     exposing
         ( AnagramModalData
@@ -8,7 +10,7 @@ import Crossword.Types
         , DictionaryState(..)
         , Msg(..)
         )
-import Html exposing (Html, button, div, form, h2, input, li, p, text, ul)
+import Html exposing (Html, button, div, form, h2, input, li, p, span, text, ul)
 import Html.Attributes as Attr
 import Html.Events
 import Json.Decode
@@ -50,25 +52,132 @@ viewModal dictState data =
                 [ Attr.class "anagram-modal__form"
                 , Html.Events.onSubmit AnagramSubmit
                 ]
-                [ input
-                    [ Attr.class "anagram-modal__input"
-                    , Attr.type_ "text"
-                    , Attr.value data.input
-                    , Attr.autofocus True
-                    , Attr.placeholder "Letters to anagram"
-                    , Html.Events.onInput AnagramInputChanged
+                [ viewTokens data.tokens
+                , div [ Attr.class "anagram-modal__fields" ]
+                    [ viewField "extra" "Extra letters"
+                        [ Attr.class "anagram-modal__input"
+                        , Attr.type_ "text"
+                        , Attr.value data.extra
+                        , Attr.placeholder "abbreviations, odd letters…"
+                        , Html.Events.onInput AnagramExtraChanged
+                        ]
+                    , viewField "lengths" "Lengths"
+                        [ Attr.class "anagram-modal__input"
+                        , Attr.type_ "text"
+                        , Attr.value data.enumeration
+                        , Attr.placeholder "4,7"
+                        , Html.Events.onInput AnagramEnumerationChanged
+                        ]
                     ]
-                    []
-                , button
-                    [ Attr.class "anagram-modal__submit"
-                    , Attr.type_ "submit"
-                    , Attr.disabled (submitDisabled dictState data)
+                , div [ Attr.class "anagram-modal__actions" ]
+                    [ viewTally data
+                    , button
+                        [ Attr.class "anagram-modal__submit"
+                        , Attr.disabled (submitDisabled dictState data)
+                        ]
+                        [ text (submitLabel dictState data) ]
                     ]
-                    [ text (submitLabel dictState data) ]
                 ]
             , viewBody dictState data
             ]
         ]
+
+
+viewField : String -> String -> List (Html.Attribute Msg) -> Html Msg
+viewField modifier label attrs =
+    Html.label [ Attr.class ("anagram-modal__field anagram-modal__field--" ++ modifier) ]
+        [ span [ Attr.class "anagram-modal__field-label" ] [ text label ]
+        , input attrs []
+        ]
+
+
+viewTokens : List Token -> Html Msg
+viewTokens tokens =
+    if List.isEmpty tokens then
+        p [ Attr.class "anagram-modal__status" ]
+            [ text "No clue selected — type the letters below." ]
+
+    else
+        div [ Attr.class "anagram-modal__tokens" ]
+            (List.indexedMap viewToken tokens)
+
+
+viewToken : Int -> Token -> Html Msg
+viewToken index token =
+    button
+        [ Attr.class "anagram-modal__token"
+        , Attr.classList [ ( "anagram-modal__token--on", token.included ) ]
+        , Attr.type_ "button"
+        , Attr.attribute "aria-pressed"
+            (if token.included then
+                "true"
+
+             else
+                "false"
+            )
+        , Html.Events.onClick (AnagramTokenToggled index)
+        ]
+        [ text token.text ]
+
+
+
+-- TALLY
+
+
+{-| Letters picked so far, measured against the enumeration when there is one.
+Mismatches are flagged here rather than left to surface as an empty result list.
+-}
+viewTally : AnagramModalData -> Html Msg
+viewTally data =
+    let
+        count =
+            Fodder.letterCount data.extra data.tokens
+
+        letterLabel =
+            String.fromInt count
+                ++ (if count == 1 then
+                        " letter"
+
+                    else
+                        " letters"
+                   )
+    in
+    case enumerationNote data count of
+        Nothing ->
+            span [ Attr.class "anagram-modal__tally" ] [ text letterLabel ]
+
+        Just ( note, isProblem ) ->
+            span
+                [ Attr.class "anagram-modal__tally"
+                , Attr.classList [ ( "anagram-modal__tally--problem", isProblem ) ]
+                ]
+                [ text (letterLabel ++ " · " ++ note) ]
+
+
+enumerationNote : AnagramModalData -> Int -> Maybe ( String, Bool )
+enumerationNote data count =
+    if String.isEmpty (String.trim data.enumeration) then
+        Nothing
+
+    else
+        case Enumeration.parse data.enumeration of
+            Nothing ->
+                Just ( "lengths not understood", True )
+
+            Just enumeration ->
+                let
+                    wanted =
+                        Enumeration.totalLetters enumeration
+                in
+                if wanted == count then
+                    Nothing
+
+                else
+                    Just ( "lengths need " ++ String.fromInt wanted, True )
+
+
+
+-- SUBMIT
 
 
 submitDisabled : DictionaryState -> AnagramModalData -> Bool
@@ -97,7 +206,7 @@ submitLabel dictState data =
             "Searching…"
 
         _ ->
-            "Find anagrams"
+            "Solve"
 
 
 viewBody : DictionaryState -> AnagramModalData -> Html Msg
@@ -129,7 +238,7 @@ viewResults : AnagramModalData -> Html Msg
 viewResults data =
     case data.lastSearch of
         Nothing ->
-            statusMessage "Type letters and press enter."
+            statusMessage "Pick the fodder words and press solve."
 
         Just AnagramSearching ->
             statusMessage "Looking for anagrams…"
@@ -142,6 +251,9 @@ viewResults data =
 
         Just AnagramNoResults ->
             statusMessage "No anagrams found."
+
+        Just AnagramNoResultsForLengths ->
+            statusMessage "No anagrams with those lengths — clear the lengths field to search freely."
 
         Just (AnagramResults results) ->
             ul [ Attr.class "anagram-modal__results" ]

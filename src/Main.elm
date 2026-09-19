@@ -1,6 +1,8 @@
 port module Main exposing (Flags, main)
 
 import Anagram.Dict as AnagramDict
+import Anagram.Enumeration as Enumeration
+import Anagram.Fodder as Fodder
 import Anagram.Search as Search
 import Browser
 import Crossword.Decode as Decode
@@ -12,6 +14,7 @@ import Crossword.Selection as Selection
 import Crossword.Types as Types
     exposing
         ( ActiveModel
+        , AnagramModalData
         , AnagramModalState(..)
         , AnagramSearchOutcome(..)
         , DictionaryState(..)
@@ -159,9 +162,6 @@ updateActive msg model =
 
         OpenAnagramModal ->
             let
-                prefill =
-                    initialPrefill model
-
                 ( newDict, loadCmd ) =
                     case model.dictionary of
                         DictNotLoaded ->
@@ -174,7 +174,7 @@ updateActive msg model =
                             ( model.dictionary, Cmd.none )
             in
             ( { model
-                | anagramModal = AnagramOpen { input = prefill, lastSearch = Nothing }
+                | anagramModal = AnagramOpen (initialModalData model)
                 , dictionary = newDict
               }
             , loadCmd
@@ -185,16 +185,18 @@ updateActive msg model =
             , Cmd.none
             )
 
-        AnagramInputChanged newInput ->
-            ( { model
-                | anagramModal =
-                    case model.anagramModal of
-                        AnagramClosed ->
-                            AnagramClosed
+        AnagramTokenToggled index ->
+            ( mapModal (\data -> { data | tokens = Fodder.toggle index data.tokens }) model
+            , Cmd.none
+            )
 
-                        AnagramOpen data ->
-                            AnagramOpen { data | input = newInput, lastSearch = Nothing }
-              }
+        AnagramExtraChanged extra ->
+            ( mapModal (\data -> { data | extra = extra }) model
+            , Cmd.none
+            )
+
+        AnagramEnumerationChanged enumeration ->
+            ( mapModal (\data -> { data | enumeration = enumeration }) model
             , Cmd.none
             )
 
@@ -237,16 +239,50 @@ updateActive msg model =
             ( model, Cmd.none )
 
 
-initialPrefill : ActiveModel -> String
-initialPrefill model =
-    if not (String.isEmpty (String.trim model.clueSelection)) then
-        model.clueSelection
+{-| Snapshot the selected clue into modal state. Tokens come from the clue
+selection when there is one, so a highlighted phrase narrows what's on offer,
+while the enumeration is always read from the whole clue.
+-}
+initialModalData : ActiveModel -> AnagramModalData
+initialModalData model =
+    let
+        clueText =
+            selectedClue model |> Maybe.map .text |> Maybe.withDefault ""
 
-    else
-        model.selection
-            |> Maybe.andThen (\sel -> Types.lookupClue sel.clueId model.puzzle)
-            |> Maybe.map .text
+        tokenSource =
+            if String.isEmpty (String.trim model.clueSelection) then
+                clueText
+
+            else
+                model.clueSelection
+    in
+    { tokens = Fodder.tokenise tokenSource
+    , extra = ""
+    , enumeration =
+        Enumeration.fromClue clueText
+            |> Maybe.map Enumeration.toText
             |> Maybe.withDefault ""
+    , lastSearch = Nothing
+    }
+
+
+selectedClue : ActiveModel -> Maybe Types.Clue
+selectedClue model =
+    model.selection
+        |> Maybe.andThen (\sel -> Types.lookupClue sel.clueId model.puzzle)
+
+
+{-| Apply a change to the open modal, discarding any results it was showing —
+every field here changes what a search would return.
+-}
+mapModal : (AnagramModalData -> AnagramModalData) -> ActiveModel -> ActiveModel
+mapModal f model =
+    case model.anagramModal of
+        AnagramClosed ->
+            model
+
+        AnagramOpen data ->
+            { model | anagramModal = AnagramOpen (f { data | lastSearch = Nothing }) }
 
 
 runSearch : ActiveModel -> AnagramModalState
@@ -256,40 +292,55 @@ runSearch model =
             AnagramClosed
 
         AnagramOpen data ->
-            let
-                outcome =
-                    computeOutcome model.dictionary data.input
-            in
-            AnagramOpen { data | lastSearch = Just outcome }
+            AnagramOpen { data | lastSearch = Just (computeOutcome model.dictionary data) }
 
 
-computeOutcome : DictionaryState -> String -> AnagramSearchOutcome
-computeOutcome dictState input =
+computeOutcome : DictionaryState -> AnagramModalData -> AnagramSearchOutcome
+computeOutcome dictState data =
     let
-        sanitised =
-            Search.sanitise input
-
-        len =
-            String.length sanitised
+        input =
+            Fodder.letters data.extra data.tokens
     in
-    if len < 3 then
+    if String.length input < 3 then
         AnagramTooShort
 
-    else if len > 15 then
+    else if String.length input > 15 then
         AnagramTooLong
 
     else
         case dictState of
             DictReady dict ->
-                case Search.search Search.defaults dict sanitised of
+                let
+                    defaults =
+                        Search.defaults
+
+                    lengths =
+                        Enumeration.parse data.enumeration
+                            |> Maybe.map (Search.OneOf << Enumeration.alternatives)
+                            |> Maybe.withDefault Search.AnyLengths
+                in
+                case Search.search { defaults | lengths = lengths } dict input of
                     [] ->
-                        AnagramNoResults
+                        emptyOutcome lengths
 
                     results ->
                         AnagramResults results
 
             _ ->
                 AnagramNoResults
+
+
+{-| Distinguish "nothing anagrams these letters" from "nothing anagrams them
+into those lengths", which is recoverable by clearing the lengths field.
+-}
+emptyOutcome : Search.WordLengths -> AnagramSearchOutcome
+emptyOutcome lengths =
+    case lengths of
+        Search.AnyLengths ->
+            AnagramNoResults
+
+        Search.OneOf _ ->
+            AnagramNoResultsForLengths
 
 
 strategyFor : NavigationStyle -> NavigationStrategy
