@@ -105,6 +105,16 @@ suite =
                     Search.search { defaults | lengths = Search.OneOf [ [ 4, 3 ], [ 7 ] ] } mixedDict "starlet"
                         |> List.length
                         |> Expect.equal 6
+            , test "a phrase cannot fill one of the enumeration's words" <|
+                \_ ->
+                    -- "on sight" has the letters for a 7, but an enumerated 7 is one word
+                    Search.search { defaults | lengths = Search.OneOf [ [ 7 ] ] } phraseDict "onsight"
+                        |> Expect.equal [ [ "HOGTIES" ] ]
+            , test "a phrase is fair game when no enumeration says otherwise" <|
+                \_ ->
+                    Search.search defaults phraseDict "onsight"
+                        |> List.member [ "on sight" ]
+                        |> Expect.equal True
             , test "an enumeration that doesn't total the input finds nothing" <|
                 \_ ->
                     Search.search { defaults | lengths = Search.OneOf [ [ 4, 4 ] ] } mixedDict "starlet"
@@ -181,6 +191,14 @@ shortWordDict =
         [ ( "at", [ "AT" ] )
         , ( "es", [ "ES" ] )
         , ( "aest", [ "SEAT", "EATS", "TEAS" ] )
+        ]
+
+
+phraseDict : Dictionary
+phraseDict =
+    -- "on sight" and "hogties" share the key ghinost
+    Dict.fromList
+        [ ( "ghinost", [ "HOGTIES", "on sight" ] )
         ]
 
 

@@ -142,7 +142,7 @@ search config dict input =
                 buildContext config.maxResults candidates
         in
         cover config ctx target
-            |> List.concatMap (expand dict)
+            |> List.concatMap (expand (admissible config.lengths) dict)
             |> rank
             |> List.take config.maxResults
 
@@ -495,11 +495,26 @@ subtractHelp super sub acc =
 
 {-| Turn a list of picked sorted-letter keys into all word-tuple combinations.
 -}
-expand : Dictionary -> List String -> List Result
-expand dict picked =
+expand : (String -> Bool) -> Dictionary -> List String -> List Result
+expand keep dict picked =
     picked
-        |> List.map (\k -> Dict.lookup k dict)
+        |> List.map (\k -> Dict.lookup k dict |> List.filter keep)
         |> cartesian
+
+
+{-| Each length in an enumeration is one word, so a multi-word entry cannot fill
+one: "(8,7)" is not answered by "all the go". The dictionary keeps such phrases
+because they are the only route to answers containing a word too short to be
+indexed, but that route only exists when no enumeration is claiming otherwise.
+-}
+admissible : WordLengths -> String -> Bool
+admissible lengths entry =
+    case lengths of
+        AnyLengths ->
+            True
+
+        OneOf _ ->
+            not (String.contains " " entry)
 
 
 cartesian : List (List a) -> List (List a)

@@ -60,6 +60,9 @@ if (explicitPath) {
 
 const index = new Map();
 
+const lettersOf = (text) => text.toLowerCase().replace(/[^a-z]/g, "");
+const keyOf = (text) => lettersOf(text).split("").sort().join("");
+
 let entriesIn = 0;
 let entriesIndexed = 0;
 
@@ -82,10 +85,10 @@ for (const rawLine of raw.split(/\r?\n/)) {
   if (line.includes("�")) continue;
 
   const display = line;
-  const letters = line.toLowerCase().replace(/[^a-z]/g, "");
+  const letters = lettersOf(line);
   if (letters.length < MIN_LETTERS || letters.length > MAX_LETTERS) continue;
 
-  const key = letters.split("").sort().join("");
+  const key = keyOf(letters);
   const bucket = index.get(key);
   if (bucket) {
     if (!bucket.includes(display)) bucket.push(display);
@@ -93,6 +96,28 @@ for (const rawLine of raw.split(/\r?\n/)) {
     index.set(key, [display]);
   }
   entriesIndexed += 1;
+}
+
+// Drop phrases the search can already build from their parts. "close company"
+// is redundant — "close" and "company" are both indexed, so a two-word search
+// finds it anyway — while "vitamin C" is not, because "C" is too short to be
+// indexed at all. Redundant phrases are worse than useless: under an
+// enumeration they masquerade as single words, so "(8,7)" offers "all the go"
+// as its eight-letter word.
+let phrasesDropped = 0;
+for (const [key, entries] of index) {
+  const kept = entries.filter((entry) => !isReconstructible(entry));
+  phrasesDropped += entries.length - kept.length;
+  if (kept.length === 0) index.delete(key);
+  else if (kept.length !== entries.length) index.set(key, kept);
+}
+
+function isReconstructible(entry) {
+  if (!entry.includes(" ")) return false;
+  return entry
+    .split(/\s+/)
+    .filter((part) => /[a-z]/i.test(part))
+    .every((part) => index.has(keyOf(part)));
 }
 
 // Stable output: sort keys and each value alphabetically so the file diffs cleanly.
@@ -105,6 +130,7 @@ for (const k of sortedKeys) {
 await writeFile(outputPath, JSON.stringify(out));
 
 console.log(
-  `Read ${entriesIn} entries, indexed ${entriesIndexed} into ${sortedKeys.length} buckets.`,
+  `Read ${entriesIn} entries, indexed ${entriesIndexed - phrasesDropped} into ${sortedKeys.length} buckets.`,
 );
+console.log(`Dropped ${phrasesDropped} phrases the search can build from their parts.`);
 console.log(`Wrote ${outputPath}`);
