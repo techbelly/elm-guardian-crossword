@@ -63,8 +63,10 @@ body {
   cursor: pointer;
 }
 
-.landing__submit:hover:not(:disabled) {
-  background: #1a1a4e;
+@media (hover: hover) {
+  .landing__submit:hover:not(:disabled) {
+    background: #1a1a4e;
+  }
 }
 
 .landing__submit:disabled {
@@ -168,8 +170,10 @@ body {
   cursor: pointer;
 }
 
-.landing__entry-button:hover {
-  background: #ececf2;
+@media (hover: hover) {
+  .landing__entry-button:hover {
+    background: #ececf2;
+  }
 }
 
 .landing__entry-number {
@@ -219,8 +223,10 @@ body {
   color: #6a6a7a;
 }
 
-.landing__credit a:hover {
-  color: #0a0a2e;
+@media (hover: hover) {
+  .landing__credit a:hover {
+    color: #0a0a2e;
+  }
 }
 
 .crossword__back {
@@ -234,8 +240,10 @@ body {
   flex-shrink: 0;
 }
 
-.crossword__back:hover {
-  color: #0a0a2e;
+@media (hover: hover) {
+  .crossword__back:hover {
+    color: #0a0a2e;
+  }
 }
 
 .crossword {
@@ -291,8 +299,10 @@ body {
   flex-shrink: 0;
 }
 
-.crossword__anagram-button:hover {
-  background: #1a1a4e;
+@media (hover: hover) {
+  .crossword__anagram-button:hover {
+    background: #1a1a4e;
+  }
 }
 
 .anagram-modal__backdrop {
@@ -364,9 +374,11 @@ body {
   cursor: pointer;
 }
 
-.anagram-modal__token:hover {
-  border-color: #0a0a2e;
-  color: #0a0a2e;
+@media (hover: hover) {
+  .anagram-modal__token:hover {
+    border-color: #0a0a2e;
+    color: #0a0a2e;
+  }
 }
 
 .anagram-modal__token--on {
@@ -441,8 +453,10 @@ body {
   flex-shrink: 0;
 }
 
-.anagram-modal__submit:hover {
-  background: #1a1a4e;
+@media (hover: hover) {
+  .anagram-modal__submit:hover {
+    background: #1a1a4e;
+  }
 }
 
 .anagram-modal__status {
@@ -558,16 +572,20 @@ body {
   border-radius: 2px;
 }
 
-.crossword__clue:hover {
-  background: #eee;
+@media (hover: hover) {
+  .crossword__clue:hover {
+    background: #eee;
+  }
 }
 
 .crossword__clue--selected {
   background: #d3e4fc;
 }
 
-.crossword__clue--selected:hover {
-  background: #c0d8f8;
+@media (hover: hover) {
+  .crossword__clue--selected:hover {
+    background: #c0d8f8;
+  }
 }
 
 .crossword__clue--answered {
