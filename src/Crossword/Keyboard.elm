@@ -145,13 +145,14 @@ handleShiftTab strategy model =
             )
 
 
+{-| Keys we act on are consumed: the handler sits on a text input, so anything
+left to the browser would also be inserted there and reach us a second time as
+an input event.
+-}
 shouldPreventDefault : String -> Bool
 shouldPreventDefault key =
     case categorizeKey key False of
         Unhandled ->
-            False
-
-        Letter _ ->
             False
 
         _ ->

@@ -313,6 +313,7 @@ type Msg
     | BackToLanding
     | CellClicked Position
     | KeyPressed String Bool
+    | TextEntered String
     | ClueClicked ClueId
     | SetNavigation NavigationStyle
     | ClueSelectionChanged String

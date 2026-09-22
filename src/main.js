@@ -67,11 +67,62 @@ function readHistory() {
   }
 }
 
+// Bring the selected clue into view by scrolling its own list only. The native
+// scrollIntoView also scrolls every ancestor, which on a phone drags the grid
+// off the screen every time the selection moves.
 app.ports.scrollIntoView.subscribe(function (id) {
   requestAnimationFrame(function () {
-    var el = document.getElementById(id);
-    if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const el = document.getElementById(id);
+    if (!el) return;
+    const panel = scrollingParent(el);
+    if (!panel) return;
+
+    const item = el.getBoundingClientRect();
+    const box = panel.getBoundingClientRect();
+    const header = panel.querySelector(".crossword__clues-header");
+    const headroom = header ? header.offsetHeight : 0;
+
+    if (item.top < box.top + headroom) {
+      panel.scrollTop += item.top - box.top - headroom;
+    } else if (item.bottom > box.bottom) {
+      panel.scrollTop += item.bottom - box.bottom;
+    }
   });
+});
+
+function scrollingParent(el) {
+  let node = el.parentElement;
+  while (node && node !== document.body) {
+    const overflow = getComputedStyle(node).overflowY;
+    if ((overflow === "auto" || overflow === "scroll") && node.scrollHeight > node.clientHeight) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
+// Typing goes through an offscreen input, and a phone only raises its keyboard
+// for a focus() made inside the gesture itself — which Elm's Browser.Dom.focus,
+// deferred to an animation frame, is not. So tapping a square or a clue focuses
+// it here, straight from the event.
+document.addEventListener("click", function (event) {
+  const target = event.target;
+  if (!target || !target.closest) return;
+  if (!target.closest("#crossword")) return;
+  if (target.closest(".anagram-modal")) return;
+  if (!target.closest("svg") && !target.closest(".crossword__clue")) return;
+
+  const letterInput = document.getElementById("crossword-letter-input");
+  if (letterInput) letterInput.focus({ preventScroll: true });
+});
+
+// Elm has read the characters by the time this bubbles up; emptying the input
+// again keeps the next keystroke a single letter.
+document.addEventListener("input", function (event) {
+  if (event.target && event.target.id === "crossword-letter-input") {
+    event.target.value = "";
+  }
 });
 
 let dictPromise = null;

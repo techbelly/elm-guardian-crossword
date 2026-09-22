@@ -1,4 +1,4 @@
-module Crossword.View.App exposing (gridElementId, view)
+module Crossword.View.App exposing (letterInputId, view)
 
 import Anagram.Modal as AnagramModal
 import Crossword.Keyboard as Keyboard
@@ -14,19 +14,28 @@ import Crossword.View.Clues as ViewClues
 import Crossword.View.Grid as ViewGrid
 import Crossword.View.Landing as ViewLanding
 import Crossword.View.Title as ViewTitle
-import Html exposing (Html, button, div, input, label, text)
+import Html exposing (Html, button, div, input, label, span, text)
 import Html.Attributes as Attr
 import Html.Events
 import Json.Decode
 
 
-{-| The element that holds keyboard focus while solving: key handling lives on
-the container, not the cells. Focus has to be put back after the anagram modal
-takes it away.
+{-| The solving container. main.js looks for it by this id when deciding
+whether a tap landed on the puzzle.
 -}
 gridElementId : String
 gridElementId =
     "crossword"
+
+
+{-| Letters are typed into a real text input rather than into the container:
+a focused input is the only thing that raises the on-screen keyboard on a
+phone. It is offscreen, so main.js focuses it when a cell or clue is tapped,
+and focus has to be put back after the anagram modal takes it away.
+-}
+letterInputId : String
+letterInputId =
+    "crossword-letter-input"
 
 
 view : Model -> Html Msg
@@ -49,32 +58,13 @@ crosswordDisplay model =
 
                 AnagramClosed ->
                     False
-
-        keyHandlerAttrs =
-            if modalOpen then
-                []
-
-            else
-                [ Html.Events.preventDefaultOn "keydown"
-                    (Json.Decode.map2
-                        (\key shift ->
-                            ( KeyPressed key shift
-                            , Keyboard.shouldPreventDefault key
-                            )
-                        )
-                        (Json.Decode.field "key" Json.Decode.string)
-                        (Json.Decode.field "shiftKey" Json.Decode.bool)
-                    )
-                ]
     in
     div
-        ([ Attr.class "crossword"
-         , Attr.id gridElementId
-         , Attr.tabindex 0
-         ]
-            ++ keyHandlerAttrs
-        )
-        [ div [ Attr.class "crossword__top" ]
+        [ Attr.class "crossword"
+        , Attr.id gridElementId
+        ]
+        [ viewLetterInput modalOpen
+        , div [ Attr.class "crossword__top" ]
             [ viewBackLink
             , ViewTitle.viewTitle model.puzzle
             , viewAnagramButton
@@ -89,6 +79,49 @@ crosswordDisplay model =
         ]
 
 
+{-| Both halves of typing land here: hardware keys through keydown, and soft
+keyboards that report "Unidentified" through the input event, which carries
+the characters themselves. Keys we act on are prevented, so a key never
+arrives twice.
+-}
+viewLetterInput : Bool -> Html Msg
+viewLetterInput modalOpen =
+    input
+        ([ Attr.id letterInputId
+         , Attr.class "crossword__letter-input"
+         , Attr.type_ "text"
+         , Attr.value ""
+         , Attr.attribute "autocomplete" "off"
+         , Attr.attribute "autocorrect" "off"
+         , Attr.attribute "autocapitalize" "characters"
+         , Attr.attribute "spellcheck" "false"
+         , Attr.attribute "enterkeyhint" "next"
+         , Attr.attribute "aria-label" "Type letters into the selected square"
+         ]
+            ++ (if modalOpen then
+                    []
+
+                else
+                    [ Html.Events.preventDefaultOn "keydown"
+                        (Json.Decode.map2
+                            (\key shift ->
+                                ( KeyPressed key shift
+                                , Keyboard.shouldPreventDefault key
+                                )
+                            )
+                            (Json.Decode.field "key" Json.Decode.string)
+                            (Json.Decode.field "shiftKey" Json.Decode.bool)
+                        )
+                    , Html.Events.on "input"
+                        (Json.Decode.map TextEntered
+                            (Json.Decode.at [ "target", "value" ] Json.Decode.string)
+                        )
+                    ]
+               )
+        )
+        []
+
+
 viewBackLink : Html Msg
 viewBackLink =
     button
@@ -96,7 +129,9 @@ viewBackLink =
         , Attr.type_ "button"
         , Html.Events.onClick BackToLanding
         ]
-        [ text "← All crosswords" ]
+        [ text "←"
+        , span [ Attr.class "crossword__back-label" ] [ text " All crosswords" ]
+        ]
 
 
 viewAnagramButton : Html Msg

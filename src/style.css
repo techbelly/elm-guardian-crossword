@@ -256,6 +256,25 @@ body {
 .crossword__title {
   font-size: 20px;
   font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Offscreen, but a real focused input: nothing else raises a phone keyboard. */
+.crossword__letter-input {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  font-size: 16px;
+  caret-color: transparent;
+  z-index: -1;
 }
 
 .crossword__anagram-button {
@@ -595,5 +614,52 @@ body {
 
   .crossword__clues {
     flex-direction: column;
+  }
+
+  /* A phone screen is mostly grid and keyboard: the chrome above it earns as
+     little room as it can, and the clue you are on rides along at the top. */
+  .crossword {
+    margin: 0 auto;
+    padding: 8px 8px 16px;
+  }
+
+  .crossword__top {
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .crossword__title {
+    font-size: 15px;
+  }
+
+  .crossword__back-label {
+    display: none;
+  }
+
+  .crossword__back {
+    font-size: 16px;
+    padding: 4px 4px 4px 0;
+  }
+
+  .crossword__anagram-button {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+
+  .crossword__sticky-clue {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 6px 10px;
+    min-height: 32px;
+    font-size: 14px;
+  }
+
+  .crossword__clues-section {
+    max-height: 45vh;
+  }
+
+  .crossword__nav-toggle {
+    margin-top: 12px;
   }
 }

@@ -216,24 +216,11 @@ updateActive msg model =
             )
 
         KeyPressed key shiftKey ->
-            let
-                ( newModel, needsSave ) =
-                    Keyboard.handleKey (strategyFor model.navigationStyle) key shiftKey model
-            in
-            if needsSave then
-                let
-                    solving =
-                        { newModel | timer = Timer.touch model.now newModel.timer }
-                in
-                ( solving
-                , Cmd.batch
-                    [ saveGrid (Encode.encodeGrid solving.puzzle.id solving.grid)
-                    , saveHistoryEntry (History.encode (historyEntry solving))
-                    ]
-                )
+            afterTyping model
+                (Keyboard.handleKey (strategyFor model.navigationStyle) key shiftKey model)
 
-            else
-                ( newModel, Cmd.none )
+        TextEntered typed ->
+            afterTyping model (typeText (strategyFor model.navigationStyle) typed model)
 
         ClueClicked cid ->
             ( { model | selection = Just ((strategyFor model.navigationStyle).selectClue model.grid model.puzzle cid) }
@@ -274,7 +261,7 @@ updateActive msg model =
             ( { model | anagramModal = AnagramClosed }
               -- The modal took keyboard focus; without this the grid keeps its
               -- highlighted square but stops accepting letters.
-            , Browser.Dom.focus ViewApp.gridElementId |> Task.attempt (\_ -> FocusRestored)
+            , Browser.Dom.focus ViewApp.letterInputId |> Task.attempt (\_ -> FocusRestored)
             )
 
         AnagramTokenToggled index ->
@@ -534,6 +521,41 @@ strategyFor style =
 
         NYT ->
             NYT.strategy
+
+
+{-| Soft keyboards often report keydown as "Unidentified" and only reveal what
+was typed in the input event, so those characters are replayed as keypresses.
+-}
+typeText : NavigationStrategy -> String -> ActiveModel -> ( ActiveModel, Bool )
+typeText strategy typed model =
+    typed
+        |> String.toList
+        |> List.foldl
+            (\ch ( soFar, saved ) ->
+                Keyboard.handleKey strategy (String.fromChar ch) False soFar
+                    |> Tuple.mapSecond (\needsSave -> saved || needsSave)
+            )
+            ( model, False )
+
+
+{-| Anything that changed the grid restarts the clock and is written back.
+-}
+afterTyping : ActiveModel -> ( ActiveModel, Bool ) -> ( ActiveModel, Cmd Msg )
+afterTyping before ( newModel, needsSave ) =
+    if needsSave then
+        let
+            solving =
+                { newModel | timer = Timer.touch before.now newModel.timer }
+        in
+        ( solving
+        , Cmd.batch
+            [ saveGrid (Encode.encodeGrid solving.puzzle.id solving.grid)
+            , saveHistoryEntry (History.encode (historyEntry solving))
+            ]
+        )
+
+    else
+        ( newModel, Cmd.none )
 
 
 scrollToClueElement : Types.ClueId -> Cmd Msg

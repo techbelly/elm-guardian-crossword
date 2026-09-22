@@ -23,9 +23,9 @@ shouldPreventDefaultSuite =
                 List.map Keyboard.shouldPreventDefault
                     [ "Tab", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Backspace", "Delete" ]
                     |> Expect.equal (List.repeat 7 True)
-        , test "returns False for letter keys" <|
+        , test "returns True for letter keys, which the text input must not also insert" <|
             \_ ->
-                Keyboard.shouldPreventDefault "a" |> Expect.equal False
+                Keyboard.shouldPreventDefault "a" |> Expect.equal True
         , test "returns False for unhandled keys like Enter" <|
             \_ ->
                 Keyboard.shouldPreventDefault "Enter" |> Expect.equal False
