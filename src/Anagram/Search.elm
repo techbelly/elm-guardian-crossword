@@ -26,9 +26,9 @@ The search runs in three stages:
 
 -}
 
-import Anagram.Dict as Dict exposing (Dictionary, Entry)
+import Anagram.Dict as Dict exposing (Dictionary)
 import Anagram.Letters exposing (sortedKey)
-import Anagram.Mask as Mask exposing (Mask)
+import Anagram.Mask as Mask
 import Dict as CoreDict exposing (Dict)
 import Set exposing (Set)
 
@@ -128,22 +128,11 @@ available in the target.
 -}
 prune : Config -> Dictionary -> String -> List String
 prune config dict target =
-    let
-        targetMask =
-            Mask.fromSortedKey target
-    in
-    candidateLengths config (String.length target)
-        |> List.concatMap (\n -> Dict.entriesOfLength n dict)
-        |> List.filterMap (keepCandidate targetMask target)
-
-
-keepCandidate : Mask -> String -> Entry -> Maybe String
-keepCandidate targetMask target entry =
-    if Mask.subsetOf entry.mask targetMask && subtract target entry.key /= Nothing then
-        Just entry.key
-
-    else
-        Nothing
+    Dict.candidateKeys
+        (candidateLengths config (String.length target))
+        (Mask.fromSortedKey target)
+        dict
+        |> List.filter (\key -> subtract target key /= Nothing)
 
 
 {-| The key lengths worth scanning. Under an enumeration only the lengths it

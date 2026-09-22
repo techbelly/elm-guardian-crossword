@@ -42,8 +42,8 @@ suite =
             , test "blank lines are skipped rather than indexed" <|
                 \_ ->
                     decodeWords "EATS\n\n"
-                        |> Maybe.map (Dict.entriesOfLength 0 >> List.length)
-                        |> Expect.equal (Just 0)
+                        |> Maybe.map (Dict.lookup "")
+                        |> Expect.equal (Just [])
             , test "a decoded list searches the same as an explicit index" <|
                 \_ ->
                     decodeWords "EATS\nSEAT\nTEAS"
@@ -134,7 +134,7 @@ suite =
                 \_ ->
                     -- "on sight" has the letters for a 7, but an enumerated 7 is one word
                     Search.search { defaults | lengths = Search.OneOf [ [ 7 ] ] } phraseDict "onsight"
-                        |> Expect.equal [ [ "HOGTIES" ] ]
+                        |> Expect.equal [ [ "HOSTING" ] ]
             , test "a phrase is fair game when no enumeration says otherwise" <|
                 \_ ->
                     Search.search defaults phraseDict "onsight"
@@ -227,9 +227,9 @@ shortWordDict =
 
 phraseDict : Dictionary
 phraseDict =
-    -- "on sight" and "hogties" share the key ghinost
+    -- HOSTING and "on sight" share the key ghinost
     Dict.fromList
-        [ ( "ghinost", [ "HOGTIES", "on sight" ] )
+        [ ( "ghinost", [ "HOSTING", "on sight" ] )
         ]
 
 
