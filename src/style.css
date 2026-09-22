@@ -655,8 +655,15 @@ body {
     font-size: 14px;
   }
 
+  /* Nothing scrolls inside the page here: the clue lists run to their full
+     length and the page itself is the only thing that moves. */
   .crossword__clues-section {
-    max-height: 45vh;
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .crossword__clues-header {
+    position: static;
   }
 
   .crossword__nav-toggle {
