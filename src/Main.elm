@@ -258,7 +258,16 @@ updateActive msg model =
             )
 
         CloseAnagramModal ->
-            ( { model | anagramModal = AnagramClosed }
+            ( { model
+                | anagramModal = AnagramClosed
+
+                -- The indexed dictionary is tens of megabytes of small objects,
+                -- enough to leave a phone collecting garbage through every
+                -- keystroke for the rest of the solve. It is let go the moment
+                -- the finder closes; the word list itself stays in the browser
+                -- cache, so reopening costs the parse and not the download.
+                , dictionary = DictNotLoaded
+              }
               -- The modal took keyboard focus; without this the grid keeps its
               -- highlighted square but stops accepting letters.
             , Browser.Dom.focus ViewApp.letterInputId |> Task.attempt (\_ -> FocusRestored)
